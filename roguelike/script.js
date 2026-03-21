@@ -14,6 +14,9 @@ const shockwaveBarEl = document.getElementById("shockwave-bar");
 const powerupOverlayEl = document.getElementById("powerup-overlay");
 const powerupOption1El = document.getElementById("powerup-option-1");
 const powerupOption2El = document.getElementById("powerup-option-2");
+const inventoryOverlayEl = document.getElementById("inventory-overlay");
+const inventoryListEl = document.getElementById("inventory-list");
+const inventoryEmptyEl = document.getElementById("inventory-empty");
 const lcOverlayEl = document.getElementById("levelcomplete-overlay");
 const lcTitleEl = document.getElementById("lc-title");
 const lcTimeTextEl = document.getElementById("lc-time-text");
@@ -373,6 +376,8 @@ let stageNumber;
 let stageGoalTime;
 let isLevelComplete;
 let pendingStageTransition;
+let playerInventory;
+let isInventoryOpen;
 
 function randomBetween(min, max) {
   return Math.random() * (max - min) + min;
@@ -449,6 +454,9 @@ function resetGame() {
   stageGoalTime = 30;
   isLevelComplete = false;
   pendingStageTransition = false;
+  playerInventory = [];
+  isInventoryOpen = false;
+  inventoryOverlayEl.classList.add("hidden");
   lcOverlayEl.classList.add("hidden");
 
   player = {
@@ -775,6 +783,31 @@ function maybeOpenPowerUpChoice() {
   }
 }
 
+function openInventory() {
+  if (playerInventory.length === 0) {
+    inventoryListEl.innerHTML = "";
+    inventoryEmptyEl.classList.remove("hidden");
+  } else {
+    inventoryEmptyEl.classList.add("hidden");
+    inventoryListEl.innerHTML = playerInventory.map((e) => `
+      <div class="inventory-item ${e.rarity}">
+        <div class="inventory-item-header">
+          <span class="powerup-rarity">${e.rarity}</span>
+          <span class="inventory-item-name">${e.title}</span>
+          ${e.count > 1 ? `<span class="inventory-item-count">x${e.count}</span>` : ""}
+        </div>
+        <div class="inventory-item-desc">${e.description}</div>
+      </div>`).join("");
+  }
+  isInventoryOpen = true;
+  inventoryOverlayEl.classList.remove("hidden");
+}
+
+function closeInventory() {
+  isInventoryOpen = false;
+  inventoryOverlayEl.classList.add("hidden");
+}
+
 function proceedFromLevelComplete() {
   isLevelComplete = false;
   lcOverlayEl.classList.add("hidden");
@@ -798,6 +831,12 @@ function choosePowerUpByIndex(index) {
   chosen.apply();
   if (chosen.unique) {
     availablePowerUps = availablePowerUps.filter((powerup) => powerup.id !== chosen.id);
+  }
+  const existing = playerInventory.find((e) => e.id === chosen.id);
+  if (existing) {
+    existing.count += 1;
+  } else {
+    playerInventory.push({ id: chosen.id, title: chosen.title, description: chosen.description, rarity: chosen.rarity, count: 1 });
   }
   pendingPowerUpChoices = Math.max(0, pendingPowerUpChoices - 1);
   isChoosingPowerUp = false;
@@ -889,23 +928,30 @@ function tryDash() {
     const originX = player.x;
     const originY = player.y;
     const teleportDistance = dashSpeedCurrent * dashDurationCurrent * teleportDashRangeMultiplier;
-    const steps = Math.ceil(teleportDistance / 8);
-    let validX = originX;
-    let validY = originY;
-    for (let s = 1; s <= steps; s++) {
-      const t = s / steps;
-      const testX = clamp(originX + dashDir.x * teleportDistance * t, 0, WORLD.width - player.size);
-      const testY = clamp(originY + dashDir.y * teleportDistance * t, 0, WORLD.height - player.size);
-      player.x = testX;
-      player.y = testY;
-      if (currentMap.walls.some((w) => isCollidingWithWall(player, w))) {
-        break;
+    const destX = clamp(originX + dashDir.x * teleportDistance, 0, WORLD.width - player.size);
+    const destY = clamp(originY + dashDir.y * teleportDistance, 0, WORLD.height - player.size);
+    player.x = destX;
+    player.y = destY;
+    if (currentMap.walls.some((w) => isCollidingWithWall(player, w))) {
+      let freed = false;
+      for (let push = 8; push <= 200; push += 8) {
+        player.x = clamp(destX + dashDir.x * push, 0, WORLD.width - player.size);
+        player.y = clamp(destY + dashDir.y * push, 0, WORLD.height - player.size);
+        if (!currentMap.walls.some((w) => isCollidingWithWall(player, w))) {
+          freed = true;
+          break;
+        }
       }
-      validX = testX;
-      validY = testY;
+      if (!freed) {
+        for (let push = 8; push <= teleportDistance; push += 8) {
+          player.x = clamp(destX - dashDir.x * push, 0, WORLD.width - player.size);
+          player.y = clamp(destY - dashDir.y * push, 0, WORLD.height - player.size);
+          if (!currentMap.walls.some((w) => isCollidingWithWall(player, w))) {
+            break;
+          }
+        }
+      }
     }
-    player.x = validX;
-    player.y = validY;
     spawnVisualBurst(originX + player.size / 2, originY + player.size / 2, "255,165,80", 70, 0.16);
     spawnVisualBurst(player.x + player.size / 2, player.y + player.size / 2, "255,205,130", 95, 0.2);
     checkPlayerEnemyCollision();
@@ -1183,7 +1229,7 @@ function gameLoop(now) {
   const deltaSeconds = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
 
-  if (!gameOver && !isChoosingPowerUp && !isLevelComplete) {
+  if (!gameOver && !isChoosingPowerUp && !isLevelComplete && !isInventoryOpen) {
     surviveTime += deltaSeconds;
     spawnTimer += deltaSeconds;
     shardSpawnTimer += deltaSeconds;
@@ -1263,6 +1309,12 @@ canvas.addEventListener("contextmenu", (event) => {
 
 window.addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
+
+  if (event.code === "Tab") {
+    event.preventDefault();
+    isInventoryOpen ? closeInventory() : openInventory();
+    return;
+  }
 
   if (event.shiftKey && event.code >= "Digit1" && event.code <= "Digit5") {
     const targetStage = parseInt(event.code.replace("Digit", ""));
