@@ -153,6 +153,108 @@ const MAPS = [
       { x: 860, y: 600, w: 120, h: 30 },
     ],
   },
+  {
+    // Open field with scattered square pillars — no corridors, pure dodging
+    name: "Pfeiler",
+    mineCount: 5,
+    walls: [
+      { x: 160, y: 160, w: 80, h: 80 },
+      { x: 660, y: 80,  w: 80, h: 80 },
+      { x: 1200, y: 120, w: 80, h: 80 },
+      { x: 280, y: 480, w: 80, h: 80 },
+      { x: 700, y: 330, w: 80, h: 80 },
+      { x: 1340, y: 440, w: 80, h: 80 },
+      { x: 120, y: 720, w: 80, h: 80 },
+      { x: 680, y: 710, w: 80, h: 80 },
+      { x: 1100, y: 650, w: 80, h: 80 },
+    ],
+  },
+  {
+    // Grid-like cells divided by walls — narrow passages force routing decisions
+    name: "Zellen",
+    mineCount: 5,
+    walls: [
+      // Top horizontal barriers (gap 580-780)
+      { x: 0,   y: 280, w: 580, h: 28 },
+      { x: 780, y: 280, w: 820, h: 28 },
+      // Bottom horizontal barriers (gap 700-900)
+      { x: 0,   y: 620, w: 700, h: 28 },
+      { x: 900, y: 620, w: 700, h: 28 },
+      // Vertical dividers with gaps
+      { x: 540, y: 0,   w: 28, h: 180 },
+      { x: 540, y: 360, w: 28, h: 180 },
+      { x: 1100, y: 120, w: 28, h: 180 },
+      { x: 1100, y: 360, w: 28, h: 180 },
+      { x: 300, y: 640, w: 28, h: 260 },
+      { x: 1280, y: 650, w: 28, h: 250 },
+    ],
+  },
+  {
+    // Arena: tight center space surrounded by partial outer walls and a small center block
+    name: "Arena",
+    mineCount: 6,
+    walls: [
+      // Left barrier with gap y:350-550
+      { x: 240, y: 0,   w: 28, h: 350 },
+      { x: 240, y: 550, w: 28, h: 350 },
+      // Right barrier with gap y:350-550
+      { x: 1332, y: 0,   w: 28, h: 350 },
+      { x: 1332, y: 550, w: 28, h: 350 },
+      // Top inner walls (gap x:730-870 in center)
+      { x: 380, y: 200, w: 350, h: 28 },
+      { x: 870, y: 200, w: 350, h: 28 },
+      // Bottom inner walls
+      { x: 380, y: 672, w: 350, h: 28 },
+      { x: 870, y: 672, w: 350, h: 28 },
+      // Small center obstacle
+      { x: 686, y: 380, w: 228, h: 28 },
+      { x: 686, y: 380, w: 28, h: 80 },
+      { x: 886, y: 380, w: 28, h: 80 },
+    ],
+  },
+  {
+    // Spirale: concentric partial rings — players must navigate layers to find space
+    name: "Spirale",
+    mineCount: 6,
+    walls: [
+      // Outer ring (open bottom-right)
+      { x: 100, y: 100, w: 900, h: 28 },
+      { x: 100, y: 100, w: 28,  h: 650 },
+      { x: 100, y: 750, w: 500, h: 28 },
+      // Middle ring (open top-left)
+      { x: 700,  y: 250, w: 622, h: 28 },
+      { x: 1322, y: 250, w: 28,  h: 472 },
+      { x: 600,  y: 722, w: 750, h: 28 },
+      // Inner section
+      { x: 350, y: 380, w: 400, h: 28 },
+      { x: 350, y: 380, w: 28,  h: 230 },
+      { x: 900, y: 480, w: 28,  h: 150 },
+    ],
+  },
+  {
+    // Trümmer: dense scattered rubble — small wall fragments everywhere, high mine count
+    name: "Trümmer",
+    mineCount: 7,
+    walls: [
+      { x: 80,   y: 190, w: 140, h: 26 },
+      { x: 340,  y: 130, w: 26,  h: 160 },
+      { x: 580,  y: 220, w: 160, h: 26 },
+      { x: 880,  y: 160, w: 26,  h: 140 },
+      { x: 1080, y: 200, w: 150, h: 26 },
+      { x: 1380, y: 130, w: 26,  h: 190 },
+      { x: 180,  y: 430, w: 26,  h: 200 },
+      { x: 390,  y: 490, w: 200, h: 26 },
+      { x: 700,  y: 400, w: 26,  h: 170 },
+      { x: 960,  y: 470, w: 180, h: 26 },
+      { x: 1220, y: 420, w: 26,  h: 170 },
+      { x: 80,   y: 660, w: 200, h: 26 },
+      { x: 360,  y: 720, w: 26,  h: 180 },
+      { x: 590,  y: 660, w: 160, h: 26 },
+      { x: 880,  y: 700, w: 26,  h: 200 },
+      { x: 1140, y: 640, w: 200, h: 26 },
+      { x: 1440, y: 680, w: 26,  h: 220 },
+    ],
+  },
 ];
 const POWER_UP_POOL = [
   {
@@ -373,6 +475,7 @@ let currentMapIndex;
 let currentMap;
 let mines;
 let stageNumber;
+let stageRound;
 let stageGoalTime;
 let isLevelComplete;
 let pendingStageTransition;
@@ -451,6 +554,7 @@ function resetGame() {
   currentMapIndex = 0;
   currentMap = MAPS[currentMapIndex];
   stageNumber = 1;
+  stageRound = 1;
   stageGoalTime = 30;
   isLevelComplete = false;
   pendingStageTransition = false;
@@ -524,9 +628,17 @@ function resetGame() {
   }
 }
 
+function stageGoalForStage(n) {
+  return Math.min(100, 30 + (n - 1) * 10);
+}
+
 function startNextStage() {
   stageNumber += 1;
-  stageGoalTime = 30 + (stageNumber - 1) * 10;
+  if (stageNumber > 10) {
+    stageNumber = 1;
+    stageRound += 1;
+  }
+  stageGoalTime = stageGoalForStage(stageNumber);
   currentMapIndex = (currentMapIndex + 1) % MAPS.length;
   currentMap = MAPS[currentMapIndex];
 
@@ -1270,7 +1382,12 @@ function gameLoop(now) {
       isLevelComplete = true;
       lcTitleEl.textContent = `Stage ${stageNumber} geschafft!`;
       lcTimeTextEl.textContent = `Überlebt: ${surviveTime.toFixed(1)}s`;
-      lcNextTextEl.textContent = `Nächstes Ziel: ${stageGoalTime + 10}s überleben`;
+      if (stageNumber === 10) {
+        lcNextTextEl.textContent = `Runde ${stageRound + 1} beginnt — Stage 1, Ziel: 30s`;
+      } else {
+        const nextGoal = stageGoalForStage(stageNumber + 1);
+        lcNextTextEl.textContent = `Nächstes Ziel: ${nextGoal}s überleben`;
+      }
       lcOverlayEl.classList.remove("hidden");
     }
   }
@@ -1306,8 +1423,9 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
-  if (event.shiftKey && event.code >= "Digit1" && event.code <= "Digit5") {
-    const targetStage = parseInt(event.code.replace("Digit", ""));
+  if (event.shiftKey && /^Digit[0-9]$/.test(event.code)) {
+    const digit = parseInt(event.code.replace("Digit", ""));
+    const targetStage = digit === 0 ? 10 : digit;
     stageNumber = targetStage - 1;
     currentMapIndex = targetStage - 2;
     startNextStage();
