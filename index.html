@@ -14,7 +14,33 @@
       <p id="startmenu-sub" class="startmenu-sub">Überlebe so lange wie möglich.</p>
       <p id="startmenu-gameover" class="startmenu-gameover hidden"></p>
       <button id="startmenu-btn" class="startmenu-btn" type="button">Spielen</button>
+      <div class="startmenu-guide-btns">
+        <button id="btn-show-upgrades" class="startmenu-guide-btn" type="button">Upgrades</button>
+        <button id="btn-show-enemies"  class="startmenu-guide-btn" type="button">Gegner</button>
+      </div>
       <p class="startmenu-controls">WASD bewegen &nbsp;·&nbsp; Leertaste Dash &nbsp;·&nbsp; Tab Inventar</p>
+    </div>
+  </div>
+
+  <!-- Upgrade guide overlay -->
+  <div id="upgrade-guide-overlay" class="guide-overlay hidden">
+    <div class="guide-panel">
+      <div class="guide-header">
+        <h2>Alle Upgrades</h2>
+        <button id="upgrade-guide-close" class="guide-close-btn" type="button">✕</button>
+      </div>
+      <div id="upgrade-guide-list" class="upgrade-guide-list"></div>
+    </div>
+  </div>
+
+  <!-- Enemy guide overlay -->
+  <div id="enemy-guide-overlay" class="guide-overlay hidden">
+    <div class="guide-panel">
+      <div class="guide-header">
+        <h2>Alle Gegner</h2>
+        <button id="enemy-guide-close" class="guide-close-btn" type="button">✕</button>
+      </div>
+      <div id="enemy-guide-list" class="enemy-guide-list"></div>
     </div>
   </div>
 
@@ -34,6 +60,15 @@
       </div>
 
       <canvas id="game" width="1600" height="900" aria-label="2D Spiel"></canvas>
+
+      <div id="congrats-overlay" class="congrats-overlay hidden">
+        <div class="congrats-panel">
+          <h2 class="congrats-title">Shard Rush durchgespielt!</h2>
+          <p class="congrats-sub">Alle 10 Stages überlebt. Respekt.</p>
+          <p id="congrats-stats" class="congrats-stats"></p>
+          <button id="congrats-btn" class="congrats-btn" type="button">Nochmal spielen</button>
+        </div>
+      </div>
 
       <div id="levelcomplete-overlay" class="levelcomplete-overlay hidden">
         <div class="levelcomplete-panel">

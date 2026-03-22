@@ -22,6 +22,9 @@ const lcTitleEl = document.getElementById("lc-title");
 const lcTimeTextEl = document.getElementById("lc-time-text");
 const lcNextTextEl = document.getElementById("lc-next-text");
 const lcContinueEl = document.getElementById("lc-continue");
+const congratsOverlayEl = document.getElementById("congrats-overlay");
+const congratsStatsEl = document.getElementById("congrats-stats");
+const congratsBtnEl = document.getElementById("congrats-btn");
 
 const WORLD = {
   width: canvas.width,
@@ -59,200 +62,118 @@ const MAPS = [
     name: "Ruinen",
     mineCount: 3,
     walls: [
-      { x: 180, y: 200, w: 30, h: 350 },
-      { x: 180, y: 200, w: 220, h: 30 },
-      { x: 1390, y: 200, w: 30, h: 350 },
-      { x: 1200, y: 200, w: 220, h: 30 },
-      { x: 400, y: 680, w: 300, h: 30 },
-      { x: 900, y: 680, w: 300, h: 30 },
-      { x: 300, y: 380, w: 140, h: 140 },
-      { x: 1160, y: 380, w: 140, h: 140 },
+      { x: 190, y: 230, w: 25,  h: 150 },
+      { x: 190, y: 230, w: 110, h: 25  },
+      { x: 1385, y: 230, w: 25, h: 150 },
+      { x: 1295, y: 230, w: 110, h: 25 },
+      { x: 340, y: 400, w: 100, h: 100 },
+      { x: 1160, y: 400, w: 100, h: 100 },
     ],
   },
   {
     name: "Korridor",
     mineCount: 3,
     walls: [
-      // Hauptwand oben-links und oben-rechts mit schmalem Durchgang in der Mitte
-      { x: 0, y: 420, w: 750, h: 30 },
-      { x: 850, y: 420, w: 750, h: 30 },
-      // Linke Säule oben
-      { x: 320, y: 0, w: 30, h: 300 },
-      // Rechte Säule unten
-      { x: 1250, y: 600, w: 30, h: 300 },
-      // Kleine Wand links unten
-      { x: 100, y: 620, w: 250, h: 30 },
-      // Kleine Wand rechts oben
-      { x: 1250, y: 250, w: 250, h: 30 },
-      // Block Mitte-links
-      { x: 550, y: 560, w: 140, h: 30 },
-      { x: 550, y: 560, w: 30, h: 160 },
-      // Block Mitte-rechts
-      { x: 910, y: 200, w: 140, h: 30 },
-      { x: 1020, y: 200, w: 30, h: 160 },
+      // One horizontal divider, 340px gap in centre (x:630-970)
+      { x: 0,   y: 430, w: 630, h: 25 },
+      { x: 970, y: 430, w: 630, h: 25 },
+      { x: 330,  y: 0,   w: 25, h: 170 },
+      { x: 1245, y: 730, w: 25, h: 170 },
     ],
   },
   {
-    // Linke Lücke y:300-480 (180px), rechte Lücke y:270-480 (210px)
     name: "Festung",
     mineCount: 4,
     walls: [
-      // Ecken-Dekorationen
-      { x: 80, y: 80, w: 260, h: 30 },
-      { x: 80, y: 80, w: 30, h: 220 },
-      { x: 1260, y: 790, w: 260, h: 30 },
-      { x: 1490, y: 590, w: 30, h: 220 },
-      // Linke Vertikalwand mit 180px Lücke
-      { x: 530, y: 0, w: 30, h: 300 },
-      { x: 530, y: 480, w: 30, h: 420 },
-      // Rechte Vertikalwand mit 210px Lücke
-      { x: 1040, y: 0, w: 30, h: 270 },
-      { x: 1040, y: 480, w: 30, h: 420 },
-      // Horizontale Akzentwände (blockieren keine Durchgänge)
-      { x: 0, y: 240, w: 400, h: 30 },
-      { x: 1200, y: 660, w: 400, h: 30 },
-      // Mittelstücke
-      { x: 660, y: 160, w: 180, h: 30 },
-      { x: 760, y: 710, w: 180, h: 30 },
+      // Two vertical walls — gaps 310px and 340px
+      { x: 530, y: 0,   w: 25, h: 230 },
+      { x: 530, y: 540, w: 25, h: 360 },
+      { x: 1045, y: 0,  w: 25, h: 200 },
+      { x: 1045, y: 540, w: 25, h: 360 },
+      { x: 680, y: 180, w: 240, h: 25 },
+      { x: 680, y: 700, w: 240, h: 25 },
     ],
   },
   {
-    // Horizontale Barrieren mit klaren Durchgängen, keine Sackgassen
     name: "Labyrinth",
     mineCount: 4,
     walls: [
-      // Obere Barriere: Lücke x:560-740 (180px)
-      { x: 0, y: 230, w: 560, h: 30 },
-      { x: 740, y: 230, w: 860, h: 30 },
-      // Untere Barriere: Lücke x:820-1010 (190px)
-      { x: 0, y: 670, w: 820, h: 30 },
-      { x: 1010, y: 670, w: 590, h: 30 },
-      // Linker Block
-      { x: 220, y: 380, w: 30, h: 200 },
-      { x: 220, y: 380, w: 200, h: 30 },
-      // Rechter Block
-      { x: 1180, y: 430, w: 200, h: 30 },
-      { x: 1350, y: 430, w: 30, h: 160 },
-      // Mittelwand oben
-      { x: 1350, y: 80, w: 30, h: 200 },
-      // Mittelwand unten
-      { x: 220, y: 620, w: 30, h: 280 },
+      // Two horizontal barriers — 360px and 340px gaps
+      { x: 0,   y: 240, w: 460, h: 25 },
+      { x: 820, y: 240, w: 780, h: 25 },
+      { x: 0,   y: 660, w: 730, h: 25 },
+      { x: 1070, y: 660, w: 530, h: 25 },
     ],
   },
   {
     name: "Minenfeld",
     mineCount: 4,
     walls: [
-      { x: 300, y: 150, w: 30, h: 200 },
-      { x: 300, y: 150, w: 200, h: 30 },
-      { x: 1270, y: 550, w: 30, h: 200 },
-      { x: 1070, y: 550, w: 230, h: 30 },
-      { x: 620, y: 280, w: 120, h: 30 },
-      { x: 860, y: 280, w: 120, h: 30 },
-      { x: 620, y: 600, w: 120, h: 30 },
-      { x: 860, y: 600, w: 120, h: 30 },
+      // Four small centre obstacles — mines are the main hazard here
+      { x: 620, y: 270, w: 110, h: 25 },
+      { x: 870, y: 270, w: 110, h: 25 },
+      { x: 620, y: 610, w: 110, h: 25 },
+      { x: 870, y: 610, w: 110, h: 25 },
     ],
   },
   {
-    // Open field with scattered square pillars — no corridors, pure dodging
     name: "Pfeiler",
     mineCount: 5,
     walls: [
-      { x: 160, y: 160, w: 80, h: 80 },
-      { x: 660, y: 80,  w: 80, h: 80 },
-      { x: 1200, y: 120, w: 80, h: 80 },
-      { x: 280, y: 480, w: 80, h: 80 },
-      { x: 700, y: 330, w: 80, h: 80 },
-      { x: 1340, y: 440, w: 80, h: 80 },
-      { x: 120, y: 720, w: 80, h: 80 },
-      { x: 680, y: 710, w: 80, h: 80 },
-      { x: 1100, y: 650, w: 80, h: 80 },
+      // Four corner pillars + one off-centre — open field, enemy focus
+      { x: 190,  y: 170, w: 65, h: 65 },
+      { x: 1345, y: 170, w: 65, h: 65 },
+      { x: 190,  y: 665, w: 65, h: 65 },
+      { x: 1345, y: 665, w: 65, h: 65 },
+      { x: 760,  y: 280, w: 65, h: 65 },
     ],
   },
   {
-    // Grid-like cells divided by walls — narrow passages force routing decisions
     name: "Zellen",
     mineCount: 5,
     walls: [
-      // Top horizontal barriers (gap 580-780)
-      { x: 0,   y: 280, w: 580, h: 28 },
-      { x: 780, y: 280, w: 820, h: 28 },
-      // Bottom horizontal barriers (gap 700-900)
-      { x: 0,   y: 620, w: 700, h: 28 },
-      { x: 900, y: 620, w: 700, h: 28 },
-      // Vertical dividers with gaps
-      { x: 540, y: 0,   w: 28, h: 180 },
-      { x: 540, y: 360, w: 28, h: 180 },
-      { x: 1100, y: 120, w: 28, h: 180 },
-      { x: 1100, y: 360, w: 28, h: 180 },
-      { x: 300, y: 640, w: 28, h: 260 },
-      { x: 1280, y: 650, w: 28, h: 250 },
+      // Two horizontal dividers, large gaps (280px and 320px)
+      { x: 0,    y: 310, w: 560, h: 25 },
+      { x: 840,  y: 310, w: 760, h: 25 },
+      { x: 0,    y: 620, w: 740, h: 25 },
+      { x: 1060, y: 620, w: 540, h: 25 },
     ],
   },
   {
-    // Arena: tight center space surrounded by partial outer walls and a small center block
     name: "Arena",
     mineCount: 6,
     walls: [
-      // Left barrier with gap y:350-550
-      { x: 240, y: 0,   w: 28, h: 350 },
-      { x: 240, y: 550, w: 28, h: 350 },
-      // Right barrier with gap y:350-550
-      { x: 1332, y: 0,   w: 28, h: 350 },
-      { x: 1332, y: 550, w: 28, h: 350 },
-      // Top inner walls (gap x:730-870 in center)
-      { x: 380, y: 200, w: 350, h: 28 },
-      { x: 870, y: 200, w: 350, h: 28 },
-      // Bottom inner walls
-      { x: 380, y: 672, w: 350, h: 28 },
-      { x: 870, y: 672, w: 350, h: 28 },
-      // Small center obstacle
-      { x: 686, y: 380, w: 228, h: 28 },
-      { x: 686, y: 380, w: 28, h: 80 },
-      { x: 886, y: 380, w: 28, h: 80 },
+      // Small centre U-shape — nearly fully open map
+      { x: 650, y: 350, w: 300, h: 25 },
+      { x: 650, y: 350, w: 25,  h: 200 },
+      { x: 925, y: 350, w: 25,  h: 200 },
     ],
   },
   {
-    // Spirale: concentric partial rings — players must navigate layers to find space
     name: "Spirale",
     mineCount: 6,
     walls: [
-      // Outer ring (open bottom-right)
-      { x: 100, y: 100, w: 900, h: 28 },
-      { x: 100, y: 100, w: 28,  h: 650 },
-      { x: 100, y: 750, w: 500, h: 28 },
-      // Middle ring (open top-left)
-      { x: 700,  y: 250, w: 622, h: 28 },
-      { x: 1322, y: 250, w: 28,  h: 472 },
-      { x: 600,  y: 722, w: 750, h: 28 },
-      // Inner section
-      { x: 350, y: 380, w: 400, h: 28 },
-      { x: 350, y: 380, w: 28,  h: 230 },
-      { x: 900, y: 480, w: 28,  h: 150 },
+      // Two partial L-shapes in opposite corners
+      { x: 150, y: 150, w: 500, h: 25 },
+      { x: 150, y: 150, w: 25,  h: 360 },
+      { x: 950, y: 720, w: 500, h: 25 },
+      { x: 1425, y: 390, w: 25, h: 355 },
     ],
   },
   {
-    // Trümmer: dense scattered rubble — small wall fragments everywhere, high mine count
     name: "Trümmer",
     mineCount: 7,
     walls: [
-      { x: 80,   y: 190, w: 140, h: 26 },
-      { x: 340,  y: 130, w: 26,  h: 160 },
-      { x: 580,  y: 220, w: 160, h: 26 },
-      { x: 880,  y: 160, w: 26,  h: 140 },
-      { x: 1080, y: 200, w: 150, h: 26 },
-      { x: 1380, y: 130, w: 26,  h: 190 },
-      { x: 180,  y: 430, w: 26,  h: 200 },
-      { x: 390,  y: 490, w: 200, h: 26 },
-      { x: 700,  y: 400, w: 26,  h: 170 },
-      { x: 960,  y: 470, w: 180, h: 26 },
-      { x: 1220, y: 420, w: 26,  h: 170 },
-      { x: 80,   y: 660, w: 200, h: 26 },
-      { x: 360,  y: 720, w: 26,  h: 180 },
-      { x: 590,  y: 660, w: 160, h: 26 },
-      { x: 880,  y: 700, w: 26,  h: 200 },
-      { x: 1140, y: 640, w: 200, h: 26 },
-      { x: 1440, y: 680, w: 26,  h: 220 },
+      // Sparse rubble — just enough to break sightlines
+      { x: 160,  y: 200, w: 110, h: 25 },
+      { x: 500,  y: 140, w: 25,  h: 120 },
+      { x: 970,  y: 180, w: 120, h: 25 },
+      { x: 1360, y: 140, w: 25,  h: 130 },
+      { x: 260,  y: 510, w: 25,  h: 130 },
+      { x: 700,  y: 510, w: 200, h: 25 },
+      { x: 1210, y: 480, w: 25,  h: 130 },
+      { x: 460,  y: 720, w: 120, h: 25 },
+      { x: 1080, y: 690, w: 120, h: 25 },
     ],
   },
 ];
@@ -323,23 +244,25 @@ const POWER_UP_POOL = [
   {
     id: "shockwave-radius",
     title: "Wide Shockwave",
-    description: "Shockwave-Radius wird groesser.",
+    description: "Schockwellen-Radius wird groesser (+18%) — gilt fuer normale & Dash-Schockwelle.",
     rarity: "common",
     unique: false,
-    requires: () => shockwaveUnlocked,
+    requires: () => shockwaveUnlocked || dashShockwaveUnlocked,
     apply: () => {
       shockwaveRadiusCurrent *= 1.18;
+      dashShockwaveRadius *= 1.18;
     },
   },
   {
     id: "shockwave-force",
     title: "Force Surge",
-    description: "Shockwave stoesst Gegner deutlich weiter weg.",
+    description: "Schockwelle stoesst Gegner weiter weg (+28%) — gilt fuer normale & Dash-Schockwelle.",
     rarity: "common",
     unique: false,
-    requires: () => shockwaveUnlocked,
+    requires: () => shockwaveUnlocked || dashShockwaveUnlocked,
     apply: () => {
       shockwavePushCurrent *= 1.28;
+      dashShockwaveForce *= 1.28;
     },
   },
   {
@@ -381,17 +304,6 @@ const POWER_UP_POOL = [
     requires: () => shardMagnetUnlocked,
     apply: () => {
       shardMagnetRadius += 70;
-    },
-  },
-  {
-    id: "dash-blast-radius",
-    title: "Blast Radius",
-    description: "Dash-Schockwelle hat einen groesseren Radius.",
-    rarity: "common",
-    unique: false,
-    requires: () => dashShockwaveUnlocked,
-    apply: () => {
-      dashShockwaveRadius *= 1.3;
     },
   },
   {
@@ -467,6 +379,7 @@ let shardMagnetUnlocked;
 let shardMagnetRadius;
 let dashShockwaveUnlocked;
 let dashShockwaveRadius;
+let dashShockwaveForce;
 let overclockUnlocked;
 let overclockTimeLeft;
 let overclockDuration;
@@ -477,6 +390,7 @@ let mines;
 let stageNumber;
 let stageRound;
 let stageGoalTime;
+let currentSpawnInterval;
 let isLevelComplete;
 let pendingStageTransition;
 let playerInventory;
@@ -484,6 +398,48 @@ let isInventoryOpen;
 
 function randomBetween(min, max) {
   return Math.random() * (max - min) + min;
+}
+
+// Returns the enemy type that debuts on a given stage, or null.
+function getDebutType(stageNum) {
+  const debuts = { 2: "ankerer", 3: "charger", 4: "blocker", 5: "rusher", 7: "ghost", 9: "swarm" };
+  return debuts[stageNum] || null;
+}
+
+// Spawn interval in seconds — slightly longer in later stages since enemies are stronger.
+function getSpawnInterval(stageNum) {
+  if (stageNum >= 9) return 12;
+  if (stageNum >= 6) return 11;
+  return 10;
+}
+
+function getEnemySpawnPool() {
+  const s = stageNumber;
+  const r = stageRound;
+  const debut = getDebutType(s);
+  // Normal becomes rarer as the stage pool grows; round 2+ keeps it low.
+  const normalWeight = r >= 2 ? 3 : Math.max(3, 9 - s);
+  const pool = [{ type: "normal", weight: normalWeight }];
+  // Featured bonus: +3 on the type's intro stage only.
+  const w = (type, base) => base + (debut === type ? 3 : 0);
+  if (s >= 2 || r >= 2) pool.push({ type: "ankerer", weight: w("ankerer", r >= 2 ? 7 : 5) });
+  if (s >= 3 || r >= 2) pool.push({ type: "charger", weight: w("charger", r >= 2 ? 7 : 5) });
+  if (s >= 4 || r >= 2) pool.push({ type: "blocker", weight: w("blocker", r >= 2 ? 6 : 4) });
+  if (s >= 5 || r >= 2) pool.push({ type: "rusher",  weight: w("rusher",  r >= 2 ? 7 : 5) });
+  if (s >= 7 || r >= 2) pool.push({ type: "ghost",   weight: w("ghost",   r >= 2 ? 5 : 3) });
+  if (s >= 9 || r >= 2) pool.push({ type: "swarm",   weight: w("swarm",   r >= 2 ? 6 : 4) });
+  return pool;
+}
+
+function pickEnemyType() {
+  const pool = getEnemySpawnPool();
+  const total = pool.reduce((sum, e) => sum + e.weight, 0);
+  let roll = Math.random() * total;
+  for (const entry of pool) {
+    roll -= entry.weight;
+    if (roll <= 0) return entry.type;
+  }
+  return "normal";
 }
 
 function spawnMines() {
@@ -520,7 +476,7 @@ function chooseShardType() {
   return SHARD_TYPES[2];
 }
 
-function createEnemy() {
+function createEnemy(type = "normal") {
   let x = randomBetween(20, WORLD.width - 50);
   let y = randomBetween(20, WORLD.height - 50);
   let tries = 0;
@@ -537,17 +493,22 @@ function createEnemy() {
     tries++;
   }
 
-  return {
-    x,
-    y,
-    size: 30,
-    color: "#ff5d5d",
+  const base = {
+    x, y, type,
     speedFactor: randomBetween(0.9, 1.08),
     targetOffsetX: randomBetween(-140, 140),
     targetOffsetY: randomBetween(-140, 140),
     driftStrength: randomBetween(0.12, 0.35),
     driftSeed: randomBetween(0, Math.PI * 2),
   };
+
+  if (type === "ankerer") return { ...base, size: 28, anchorX: x + 14, anchorY: y + 14 };
+  if (type === "charger") return { ...base, size: 36, chargeState: "roam", chargeTimer: randomBetween(2.5, 4.5), chargeDir: { x: 0, y: 0 } };
+  if (type === "rusher")  return { ...base, size: 20 };
+  if (type === "blocker") return { ...base, size: 32 };
+  if (type === "swarm")   return { ...base, size: 15, targetOffsetX: randomBetween(-60, 60), targetOffsetY: randomBetween(-60, 60) };
+  if (type === "ghost")   return { ...base, size: 28 };
+  return { ...base, size: 30 }; // normal
 }
 
 function resetGame() {
@@ -556,12 +517,14 @@ function resetGame() {
   stageNumber = 1;
   stageRound = 1;
   stageGoalTime = 30;
+  currentSpawnInterval = getSpawnInterval(1);
   isLevelComplete = false;
   pendingStageTransition = false;
   playerInventory = [];
   isInventoryOpen = false;
   inventoryOverlayEl.classList.add("hidden");
   lcOverlayEl.classList.add("hidden");
+  congratsOverlayEl.classList.add("hidden");
 
   player = {
     x: WORLD.width / 2 - 15,
@@ -608,6 +571,7 @@ function resetGame() {
   shardMagnetRadius = 220;
   dashShockwaveUnlocked = false;
   dashShockwaveRadius = 160;
+  dashShockwaveForce = 140;
   overclockUnlocked = false;
   overclockTimeLeft = 0;
   overclockDuration = 5;
@@ -632,19 +596,37 @@ function stageGoalForStage(n) {
   return Math.min(100, 30 + (n - 1) * 10);
 }
 
+function showCongratulations(totalLevel) {
+  gameLoopRunning = false;
+  congratsStatsEl.textContent = `Level ${totalLevel} erreicht · ${playerInventory.length} Upgrades gesammelt`;
+  congratsOverlayEl.classList.remove("hidden");
+}
+
 function startNextStage() {
   stageNumber += 1;
   if (stageNumber > 10) {
-    stageNumber = 1;
-    stageRound += 1;
+    showCongratulations(playerLevel);
+    return;
   }
   stageGoalTime = stageGoalForStage(stageNumber);
+  currentSpawnInterval = getSpawnInterval(stageNumber);
   currentMapIndex = (currentMapIndex + 1) % MAPS.length;
   currentMap = MAPS[currentMapIndex];
 
   player.x = WORLD.width / 2 - 15;
   player.y = WORLD.height / 2 - 15;
   enemies = [createEnemy()];
+
+  // Guaranteed debut spawn so the player immediately sees the new enemy type.
+  const debutType = getDebutType(stageNumber);
+  if (debutType) {
+    if (debutType === "swarm") {
+      enemies.push(createEnemy("swarm"));
+      enemies.push(createEnemy("swarm"));
+    } else {
+      enemies.push(createEnemy(debutType));
+    }
+  }
   shards = [];
   afterimages = [];
   visualBursts = [];
@@ -1076,13 +1058,15 @@ function tryDash() {
 
   if (dashShockwaveUnlocked) {
     for (const enemy of enemies) {
+      if (enemy.type === "ghost") continue; // immune to shockwave
       const ex = enemy.x + enemy.size / 2;
       const ey = enemy.y + enemy.size / 2;
       const dx2 = ex - preDashCX;
       const dy2 = ey - preDashCY;
       const dist = Math.hypot(dx2, dy2);
       if (dist <= dashShockwaveRadius && dist > 0.001) {
-        const force = (1 - dist / dashShockwaveRadius) * 140;
+        const swarmMult = enemy.type === "swarm" ? 7 : 1;
+        const force = (1 - dist / dashShockwaveRadius) * dashShockwaveForce * swarmMult;
         enemy.x = clamp(enemy.x + (dx2 / dist) * force, 0, WORLD.width - enemy.size);
         enemy.y = clamp(enemy.y + (dy2 / dist) * force, 0, WORLD.height - enemy.size);
       }
@@ -1110,13 +1094,15 @@ function tryShockwave() {
   const py = player.y + player.size / 2;
   let hitCount = 0;
   for (const enemy of enemies) {
+    if (enemy.type === "ghost") continue; // immune to shockwave
     const ex = enemy.x + enemy.size / 2;
     const ey = enemy.y + enemy.size / 2;
     const dx = ex - px;
     const dy = ey - py;
     const dist = Math.hypot(dx, dy);
     if (dist <= shockwaveRadiusCurrent && dist > 0.001) {
-      const force = (1 - dist / shockwaveRadiusCurrent) * shockwavePushCurrent;
+      const swarmMult = enemy.type === "swarm" ? 7 : 1;
+      const force = (1 - dist / shockwaveRadiusCurrent) * shockwavePushCurrent * swarmMult;
       enemy.x += (dx / dist) * force;
       enemy.y += (dy / dist) * force;
       enemy.x = clamp(enemy.x, 0, WORLD.width - enemy.size);
@@ -1130,34 +1116,26 @@ function tryShockwave() {
   statusText.textContent = `Shockwave! ${hitCount} Gegner weggestossen.`;
 }
 
-function updateEnemy(enemy, enemyIndex, deltaSeconds) {
+// Shared chase logic reused by multiple enemy types.
+function applyChaseMovement(enemy, enemyIndex, deltaSeconds, speed) {
   const time = surviveTime;
   const playerCenterX = player.x + player.size / 2;
   const playerCenterY = player.y + player.size / 2;
   const enemyCenterX = enemy.x + enemy.size / 2;
   const enemyCenterY = enemy.y + enemy.size / 2;
 
-  // Give each enemy its own moving aim point near the player.
-  const dynamicOffsetX =
-    enemy.targetOffsetX + Math.sin(time * (0.75 + enemy.driftStrength) + enemy.driftSeed) * 35;
-  const dynamicOffsetY =
-    enemy.targetOffsetY + Math.cos(time * (0.6 + enemy.driftStrength) + enemy.driftSeed * 1.3) * 35;
+  const dynamicOffsetX = enemy.targetOffsetX + Math.sin(time * (0.75 + enemy.driftStrength) + enemy.driftSeed) * 35;
+  const dynamicOffsetY = enemy.targetOffsetY + Math.cos(time * (0.6 + enemy.driftStrength) + enemy.driftSeed * 1.3) * 35;
 
   const distToPlayer = Math.hypot(enemyCenterX - playerCenterX, enemyCenterY - playerCenterY);
   const offsetScale = distToPlayer > 120 ? 1 : distToPlayer / 120;
-  const targetX = playerCenterX + dynamicOffsetX * offsetScale;
-  const targetY = playerCenterY + dynamicOffsetY * offsetScale;
+  let dx = (playerCenterX + dynamicOffsetX * offsetScale) - enemyCenterX;
+  let dy = (playerCenterY + dynamicOffsetY * offsetScale) - enemyCenterY;
 
-  let dx = targetX - enemyCenterX;
-  let dy = targetY - enemyCenterY;
-
-  // Keep enemies from stacking too tightly.
   let separationX = 0;
   let separationY = 0;
   for (let i = 0; i < enemies.length; i++) {
-    if (i === enemyIndex) {
-      continue;
-    }
+    if (i === enemyIndex) continue;
     const other = enemies[i];
     const ox = enemyCenterX - (other.x + other.size / 2);
     const oy = enemyCenterY - (other.y + other.size / 2);
@@ -1172,21 +1150,168 @@ function updateEnemy(enemy, enemyIndex, deltaSeconds) {
   dx += separationX * 1.7;
   dy += separationY * 1.7;
   const len = Math.hypot(dx, dy);
-
-  if (len > 0) {
-    dx /= len;
-    dy /= len;
-  }
+  if (len > 0) { dx /= len; dy /= len; }
 
   const wobbleX = Math.sin(time * 2.2 + enemy.driftSeed) * enemy.driftStrength;
   const wobbleY = Math.cos(time * 2.0 + enemy.driftSeed * 0.8) * enemy.driftStrength;
-  const speed = ENEMY_SPEED * enemy.speedFactor;
 
   enemy.x += (dx + wobbleX) * speed * deltaSeconds;
   enemy.y += (dy + wobbleY) * speed * deltaSeconds;
-
   enemy.x = clamp(enemy.x, 0, WORLD.width - enemy.size);
   enemy.y = clamp(enemy.y, 0, WORLD.height - enemy.size);
+}
+
+function updateEnemy(enemy, enemyIndex, deltaSeconds) {
+  const type = enemy.type || "normal";
+
+  if (type === "normal") {
+    applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * enemy.speedFactor);
+    return;
+  }
+
+  if (type === "rusher") {
+    applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 1.45 * enemy.speedFactor);
+    return;
+  }
+
+  if (type === "swarm") {
+    applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 1.6 * enemy.speedFactor);
+    return;
+  }
+
+  if (type === "ghost") {
+    applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 1.1 * enemy.speedFactor);
+    return;
+  }
+
+  if (type === "blocker") {
+    // Predict where the player is heading and intercept that point.
+    const px = player.x + player.size / 2;
+    const py = player.y + player.size / 2;
+    const enemyCenterX = enemy.x + enemy.size / 2;
+    const enemyCenterY = enemy.y + enemy.size / 2;
+
+    let moveX = 0, moveY = 0;
+    if (keys.w) moveY -= 1;
+    if (keys.s) moveY += 1;
+    if (keys.a) moveX -= 1;
+    if (keys.d) moveX += 1;
+    const mlen = Math.hypot(moveX, moveY);
+    if (mlen > 0) { moveX /= mlen; moveY /= mlen; }
+
+    const targetX = clamp(px + moveX * playerSpeedCurrent * 1.1, 0, WORLD.width);
+    const targetY = clamp(py + moveY * playerSpeedCurrent * 1.1, 0, WORLD.height);
+
+    let dx = targetX - enemyCenterX;
+    let dy = targetY - enemyCenterY;
+
+    let separationX = 0, separationY = 0;
+    for (let i = 0; i < enemies.length; i++) {
+      if (enemies[i] === enemy) continue;
+      const other = enemies[i];
+      const ox = enemyCenterX - (other.x + other.size / 2);
+      const oy = enemyCenterY - (other.y + other.size / 2);
+      const dist = Math.hypot(ox, oy);
+      if (dist > 0 && dist < ENEMY_SEPARATION_RADIUS) {
+        const force = (ENEMY_SEPARATION_RADIUS - dist) / ENEMY_SEPARATION_RADIUS;
+        separationX += (ox / dist) * force;
+        separationY += (oy / dist) * force;
+      }
+    }
+    dx += separationX * 1.5;
+    dy += separationY * 1.5;
+    const dlen = Math.hypot(dx, dy);
+    if (dlen > 0) { dx /= dlen; dy /= dlen; }
+
+    const speed = ENEMY_SPEED * 1.05 * enemy.speedFactor;
+    enemy.x += dx * speed * deltaSeconds;
+    enemy.y += dy * speed * deltaSeconds;
+    enemy.x = clamp(enemy.x, 0, WORLD.width - enemy.size);
+    enemy.y = clamp(enemy.y, 0, WORLD.height - enemy.size);
+    return;
+  }
+
+  if (type === "ankerer") {
+    const enemyCenterX = enemy.x + enemy.size / 2;
+    const enemyCenterY = enemy.y + enemy.size / 2;
+    const playerCenterX = player.x + player.size / 2;
+    const playerCenterY = player.y + player.size / 2;
+    const ANCHOR_RADIUS = 350;
+    const distToPlayer = Math.hypot(enemyCenterX - playerCenterX, enemyCenterY - playerCenterY);
+    const distToAnchor = Math.hypot(enemyCenterX - enemy.anchorX, enemyCenterY - enemy.anchorY);
+
+    if (distToPlayer < ANCHOR_RADIUS && distToAnchor < ANCHOR_RADIUS) {
+      applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 0.9 * enemy.speedFactor);
+    } else {
+      // Return to anchor.
+      let dx = enemy.anchorX - enemyCenterX;
+      let dy = enemy.anchorY - enemyCenterY;
+      const len = Math.hypot(dx, dy);
+      if (len > 0) { dx /= len; dy /= len; }
+      enemy.x += dx * ENEMY_SPEED * 0.9 * deltaSeconds;
+      enemy.y += dy * ENEMY_SPEED * 0.9 * deltaSeconds;
+      enemy.x = clamp(enemy.x, 0, WORLD.width - enemy.size);
+      enemy.y = clamp(enemy.y, 0, WORLD.height - enemy.size);
+    }
+    return;
+  }
+
+  if (type === "charger") {
+    switch (enemy.chargeState) {
+      case "roam": {
+        enemy.chargeTimer -= deltaSeconds;
+        if (enemy.chargeTimer <= 0) {
+          const ex = enemy.x + enemy.size / 2;
+          const ey = enemy.y + enemy.size / 2;
+          const dx = (player.x + player.size / 2) - ex;
+          const dy = (player.y + player.size / 2) - ey;
+          const len = Math.hypot(dx, dy);
+          enemy.chargeDir = len > 0 ? { x: dx / len, y: dy / len } : { x: 1, y: 0 };
+          enemy.chargeState = "windup";
+          enemy.chargeTimer = 1.0;
+        }
+        applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 0.55 * enemy.speedFactor);
+        break;
+      }
+      case "windup": {
+        // Stand still and flash — direction is locked.
+        enemy.chargeTimer -= deltaSeconds;
+        if (enemy.chargeTimer <= 0) {
+          enemy.chargeState = "dash";
+          enemy.chargeTimer = 0.38;
+        }
+        break;
+      }
+      case "dash": {
+        enemy.chargeTimer -= deltaSeconds;
+        const prevX = enemy.x, prevY = enemy.y;
+        enemy.x += enemy.chargeDir.x * 650 * deltaSeconds;
+        enemy.y += enemy.chargeDir.y * 650 * deltaSeconds;
+        enemy.x = clamp(enemy.x, 0, WORLD.width - enemy.size);
+        enemy.y = clamp(enemy.y, 0, WORLD.height - enemy.size);
+        if (currentMap.walls.some(w => isCollidingWithWall(enemy, w))) {
+          enemy.x = prevX;
+          enemy.y = prevY;
+          enemy.chargeTimer = 0;
+        }
+        if (enemy.chargeTimer <= 0) {
+          enemy.chargeState = "cooldown";
+          enemy.chargeTimer = 2.2;
+        }
+        break;
+      }
+      case "cooldown": {
+        enemy.chargeTimer -= deltaSeconds;
+        if (enemy.chargeTimer <= 0) {
+          enemy.chargeState = "roam";
+          enemy.chargeTimer = randomBetween(2.5, 4.5);
+        }
+        applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 0.75 * enemy.speedFactor);
+        break;
+      }
+    }
+    return;
+  }
 }
 
 function isColliding(a, b) {
@@ -1225,6 +1350,135 @@ function checkMineCollision() {
 function drawRect(entity) {
   ctx.fillStyle = entity.color;
   ctx.fillRect(entity.x, entity.y, entity.size, entity.size);
+}
+
+function drawEnemy(enemy, time) {
+  const cx = enemy.x + enemy.size / 2;
+  const cy = enemy.y + enemy.size / 2;
+  const type = enemy.type || "normal";
+
+  if (type === "normal") {
+    ctx.fillStyle = "#ff5d5d";
+    ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
+    return;
+  }
+
+  if (type === "rusher") {
+    // Magenta square with a faint glow circle.
+    ctx.fillStyle = "rgba(255,50,200,0.25)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, enemy.size * 1.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ff32c8";
+    ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
+    return;
+  }
+
+  if (type === "swarm") {
+    // Small purple circle.
+    ctx.fillStyle = "#aa44ff";
+    ctx.beginPath();
+    ctx.arc(cx, cy, enemy.size / 2, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+
+  if (type === "ghost") {
+    // Pulsing semi-transparent blue-white square.
+    const alpha = 0.35 + Math.sin(time * 3 + enemy.driftSeed) * 0.18;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "#c0d8ff";
+    ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
+    ctx.globalAlpha = 1;
+    return;
+  }
+
+  if (type === "blocker") {
+    // Teal triangle pointing toward the player.
+    const angle = Math.atan2(
+      (player.y + player.size / 2) - cy,
+      (player.x + player.size / 2) - cx
+    );
+    const r = enemy.size / 2;
+    ctx.fillStyle = "#44ddcc";
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(angle) * r,         cy + Math.sin(angle) * r);
+    ctx.lineTo(cx + Math.cos(angle + 2.5) * r,   cy + Math.sin(angle + 2.5) * r);
+    ctx.lineTo(cx + Math.cos(angle - 2.5) * r,   cy + Math.sin(angle - 2.5) * r);
+    ctx.closePath();
+    ctx.fill();
+    return;
+  }
+
+  if (type === "ankerer") {
+    // Dashed tether line to anchor.
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,153,51,0.28)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(enemy.anchorX, enemy.anchorY);
+    ctx.stroke();
+    ctx.restore();
+    // Orange diamond — drawn larger than hitbox so it reads clearly.
+    const r = enemy.size * 0.78;
+    ctx.fillStyle = "#ff9933";
+    ctx.beginPath();
+    ctx.moveTo(cx,     cy - r);
+    ctx.lineTo(cx + r, cy);
+    ctx.lineTo(cx,     cy + r);
+    ctx.lineTo(cx - r, cy);
+    ctx.closePath();
+    ctx.fill();
+    // Dark outline to separate from shards.
+    ctx.strokeStyle = "#7a3a00";
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    return;
+  }
+
+  if (type === "charger") {
+    // Flashes white during windup, turns orange during dash.
+    if (enemy.chargeState === "windup") {
+      ctx.fillStyle = Math.sin(time * 18) > 0 ? "#ffffff" : "#ffee00";
+    } else if (enemy.chargeState === "dash") {
+      ctx.fillStyle = "#ff8800";
+    } else {
+      ctx.fillStyle = "#ffdd00";
+    }
+    // Wide flat rectangle to convey bulk.
+    const w = enemy.size;
+    const h = Math.round(enemy.size * 0.65);
+    ctx.fillRect(cx - w / 2, cy - h / 2, w, h);
+    // Arrow showing charge direction during windup and dash.
+    if (enemy.chargeState === "windup" || enemy.chargeState === "dash") {
+      const arrowLen = 48;
+      const headSize = 12;
+      const tipX = cx + enemy.chargeDir.x * arrowLen;
+      const tipY = cy + enemy.chargeDir.y * arrowLen;
+      const baseX = tipX - enemy.chargeDir.x * headSize;
+      const baseY = tipY - enemy.chargeDir.y * headSize;
+      const perpX = -enemy.chargeDir.y;
+      const perpY =  enemy.chargeDir.x;
+      // Shaft
+      ctx.strokeStyle = "rgba(255,255,255,0.9)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(baseX, baseY);
+      ctx.stroke();
+      // Arrowhead
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.beginPath();
+      ctx.moveTo(tipX, tipY);
+      ctx.lineTo(baseX + perpX * headSize * 0.55, baseY + perpY * headSize * 0.55);
+      ctx.lineTo(baseX - perpX * headSize * 0.55, baseY - perpY * headSize * 0.55);
+      ctx.closePath();
+      ctx.fill();
+    }
+    return;
+  }
 }
 
 function drawScene() {
@@ -1285,7 +1539,7 @@ function drawScene() {
 
   drawRect(player);
   for (const enemy of enemies) {
-    drawRect(enemy);
+    drawEnemy(enemy, surviveTime);
   }
 
   ctx.fillStyle = "#d6e4ff";
@@ -1362,10 +1616,17 @@ function gameLoop(now) {
       updateEnemy(enemies[i], i, deltaSeconds);
     }
 
-    if (spawnTimer >= ENEMY_SPAWN_INTERVAL) {
-      spawnTimer -= ENEMY_SPAWN_INTERVAL;
-      enemies.push(createEnemy());
-      statusText.textContent = `Neuer Gegner gespawnt! (${enemies.length} insgesamt)`;
+    if (spawnTimer >= currentSpawnInterval) {
+      spawnTimer -= currentSpawnInterval;
+      const spawnType = pickEnemyType();
+      if (spawnType === "swarm") {
+        const count = 3 + Math.floor(Math.random() * 2);
+        for (let i = 0; i < count; i++) enemies.push(createEnemy("swarm"));
+        statusText.textContent = `Schwarm! (${enemies.length} Gegner)`;
+      } else {
+        enemies.push(createEnemy(spawnType));
+        statusText.textContent = `Neuer Gegner gespawnt! (${enemies.length} insgesamt)`;
+      }
     }
 
     if (shardSpawnTimer >= SHARD_SPAWN_INTERVAL) {
@@ -1383,7 +1644,7 @@ function gameLoop(now) {
       lcTitleEl.textContent = `Stage ${stageNumber} geschafft!`;
       lcTimeTextEl.textContent = `Überlebt: ${surviveTime.toFixed(1)}s`;
       if (stageNumber === 10) {
-        lcNextTextEl.textContent = `Runde ${stageRound + 1} beginnt — Stage 1, Ziel: 30s`;
+        lcNextTextEl.textContent = `Finale Stage — du hast es fast geschafft!`;
       } else {
         const nextGoal = stageGoalForStage(stageNumber + 1);
         lcNextTextEl.textContent = `Nächstes Ziel: ${nextGoal}s überleben`;
@@ -1407,6 +1668,11 @@ powerupOption2El.addEventListener("click", () => {
 
 lcContinueEl.addEventListener("click", () => {
   proceedFromLevelComplete();
+});
+
+congratsBtnEl.addEventListener("click", () => {
+  congratsOverlayEl.classList.add("hidden");
+  showStartMenu();
 });
 
 canvas.addEventListener("contextmenu", (event) => {
@@ -1524,3 +1790,141 @@ function triggerDeathTransition(msg) {
 }
 
 startmenuBtnEl.addEventListener("click", startGame);
+
+// ── Guide overlays ──
+const upgradeGuideOverlayEl = document.getElementById("upgrade-guide-overlay");
+const upgradeGuideListEl    = document.getElementById("upgrade-guide-list");
+const enemyGuideOverlayEl   = document.getElementById("enemy-guide-overlay");
+const enemyGuideListEl      = document.getElementById("enemy-guide-list");
+
+function getRequiresLabel(id) {
+  if (id === "shockwave-radius" || id === "shockwave-force") return "Benötigt: Schockwave oder Dash-Schockwave";
+  if (id === "magnet-range")       return "Benötigt: Shard Magnet";
+  if (id === "overclock-speed" || id === "overclock-duration") return "Benötigt: Overclock";
+  if (id === "teleport-range")     return "Benötigt: Teleport Dash";
+  return null;
+}
+
+function buildUpgradeGuide() {
+  const rarityOrder = { common: 0, rare: 1, epic: 2 };
+  const sorted = [...POWER_UP_POOL].sort((a, b) => rarityOrder[a.rarity] - rarityOrder[b.rarity]);
+  upgradeGuideListEl.innerHTML = sorted.map(p => {
+    const req = getRequiresLabel(p.id);
+    return `
+      <div class="upgrade-guide-item ${p.rarity}">
+        <div class="upgrade-guide-item-title">
+          <span class="powerup-rarity">${p.rarity}</span>
+          <strong>${p.title}</strong>
+        </div>
+        <p class="upgrade-guide-item-desc">${p.description}</p>
+        ${req ? `<p class="upgrade-guide-item-req">${req}</p>` : ""}
+      </div>`;
+  }).join("");
+}
+
+const ENEMY_GUIDE_DATA = [
+  {
+    name: "Jäger",
+    stage: "Ab Stage 1",
+    desc: "Jagt den Spieler direkt. Standardgegner, solide Geschwindigkeit.",
+    tag: "Basis",
+    iconBg: "#3a1010",
+    iconColor: "#ff5d5d",
+    shape: "square",
+  },
+  {
+    name: "Ankerer",
+    stage: "Ab Stage 2",
+    desc: "Bewacht einen festen Bereich (~350px Radius). Verlässt seinen Ankerpunkt nicht.",
+    tag: "Zonenverteidigung",
+    iconBg: "#3a1f00",
+    iconColor: "#ff9933",
+    shape: "diamond",
+  },
+  {
+    name: "Ansturm",
+    stage: "Ab Stage 3",
+    desc: "Lädt kurz auf (blinkt), schießt dann in gerader Linie mit hoher Geschwindigkeit los. Stopp an Wänden.",
+    tag: "Telegraphiert",
+    iconBg: "#2a2500",
+    iconColor: "#ffdd00",
+    shape: "square",
+  },
+  {
+    name: "Blocker",
+    stage: "Ab Stage 4",
+    desc: "Berechnet wohin du läufst und stellt sich in den Weg. Macht Dash-Richtung zur Entscheidung.",
+    tag: "Interceptor",
+    iconBg: "#00201e",
+    iconColor: "#44ddcc",
+    shape: "triangle",
+  },
+  {
+    name: "Racer",
+    stage: "Ab Stage 5",
+    desc: "Schneller als normale Gegner (~45% mehr Speed). Kein Spezialverhalten — pure Geschwindigkeit.",
+    tag: "Schnell",
+    iconBg: "#2a0020",
+    iconColor: "#ff32c8",
+    shape: "square",
+  },
+  {
+    name: "Geist",
+    stage: "Ab Stage 7",
+    desc: "Halb-transparent und schwer zu sehen. Immun gegen Schockwelle und Dash-Schockwelle.",
+    tag: "Immun gegen Schockwave",
+    iconBg: "#101828",
+    iconColor: "#c0d8ff",
+    shape: "square",
+  },
+  {
+    name: "Schwarm",
+    stage: "Ab Stage 9",
+    desc: "Spawnt immer in Gruppen von 3–4. Wird von Schockwellen extrem weit weggeschleudert.",
+    tag: "Gruppe · Schockwave-Konter",
+    iconBg: "#1a0a30",
+    iconColor: "#aa44ff",
+    shape: "circle",
+  },
+];
+
+function buildEnemyGuide() {
+  enemyGuideListEl.innerHTML = ENEMY_GUIDE_DATA.map(e => {
+    let iconHtml;
+    if (e.shape === "circle") {
+      iconHtml = `<div style="width:22px;height:22px;border-radius:50%;background:${e.iconColor};"></div>`;
+    } else if (e.shape === "diamond") {
+      iconHtml = `<div style="width:20px;height:20px;background:${e.iconColor};transform:rotate(45deg);"></div>`;
+    } else if (e.shape === "triangle") {
+      iconHtml = `<div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:22px solid ${e.iconColor};"></div>`;
+    } else {
+      iconHtml = `<div style="width:22px;height:22px;background:${e.iconColor};border-radius:3px;"></div>`;
+    }
+    return `
+      <div class="enemy-guide-item">
+        <div class="enemy-guide-icon" style="background:${e.iconBg};">${iconHtml}</div>
+        <div class="enemy-guide-info">
+          <p class="enemy-guide-name">${e.name}</p>
+          <span class="enemy-guide-stage">${e.stage}</span>
+          <p class="enemy-guide-desc">${e.desc}</p>
+          <span class="enemy-guide-tag">${e.tag}</span>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+document.getElementById("btn-show-upgrades").addEventListener("click", () => {
+  buildUpgradeGuide();
+  upgradeGuideOverlayEl.classList.remove("hidden");
+});
+document.getElementById("upgrade-guide-close").addEventListener("click", () => {
+  upgradeGuideOverlayEl.classList.add("hidden");
+});
+
+document.getElementById("btn-show-enemies").addEventListener("click", () => {
+  buildEnemyGuide();
+  enemyGuideOverlayEl.classList.remove("hidden");
+});
+document.getElementById("enemy-guide-close").addEventListener("click", () => {
+  enemyGuideOverlayEl.classList.add("hidden");
+});
