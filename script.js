@@ -48,7 +48,7 @@ const BASE_PLAYER_SPEED = PLAYER_SPEED;
 const BASE_DASH_SPEED = DASH_SPEED;
 const BASE_DASH_DURATION = DASH_DURATION;
 const BASE_DASH_COOLDOWN = DASH_COOLDOWN;
-const SHOCKWAVE_COOLDOWN = 10;
+const SHOCKWAVE_COOLDOWN = 7;
 const SHOCKWAVE_RADIUS = 230;
 const SHOCKWAVE_PUSH = 180;
 const SHARD_TYPES = [
@@ -339,6 +339,57 @@ const POWER_UP_POOL = [
       teleportDashRangeMultiplier *= 1.18;
     },
   },
+  {
+    id: "iron-dash",
+    title: "Iron Dash",
+    description: "Du bist waehrend des Dash unverwundbar.",
+    rarity: "rare",
+    unique: true,
+    apply: () => {
+      ironDashUnlocked = true;
+    },
+  },
+  {
+    id: "shard-storm",
+    title: "Shard Storm",
+    description: "Alle 5 Shards wird ein Bonus-Shard gespawnt. Jeder Stack senkt das Limit um 1.",
+    rarity: "common",
+    unique: false,
+    apply: () => {
+      shardStormUnlocked = true;
+      shardStormThreshold = Math.max(2, shardStormThreshold - 1);
+    },
+  },
+  {
+    id: "phantom",
+    title: "Phantom",
+    description: "Dash hinterlaesst einen Koeder — Gegner jagen ihn fuer 2s.",
+    rarity: "epic",
+    unique: true,
+    apply: () => {
+      phantomDashUnlocked = true;
+    },
+  },
+  {
+    id: "shard-pulse",
+    title: "Shard Pulse",
+    description: "Jeder eingesammelte Shard stoesst nahegelegene Gegner weg.",
+    rarity: "rare",
+    unique: true,
+    apply: () => {
+      shardPulseUnlocked = true;
+    },
+  },
+  {
+    id: "overdrive",
+    title: "Overdrive",
+    description: "Dash hat keinen Cooldown.",
+    rarity: "legendary",
+    unique: true,
+    apply: () => {
+      overdriveUnlocked = true;
+    },
+  },
 ];
 
 let player;
@@ -347,6 +398,7 @@ let keys;
 let gameOver;
 let lastTime;
 let surviveTime;
+let totalTime;
 let spawnTimer;
 let dashCooldownLeft;
 let dashTimeLeft;
@@ -395,6 +447,16 @@ let isLevelComplete;
 let pendingStageTransition;
 let playerInventory;
 let isInventoryOpen;
+let ironDashUnlocked;
+let dashImmunityLeft;
+let shardStormUnlocked;
+let shardStormCount;
+let shardStormThreshold;
+let shardPulseUnlocked;
+let phantomDashUnlocked;
+let phantomCooldownLeft;
+let decoys;
+let overdriveUnlocked;
 
 function randomBetween(min, max) {
   return Math.random() * (max - min) + min;
@@ -544,6 +606,7 @@ function resetGame() {
 
   gameOver = false;
   surviveTime = 0;
+  totalTime = 0;
   spawnTimer = 0;
   dashCooldownLeft = 0;
   dashTimeLeft = 0;
@@ -576,6 +639,16 @@ function resetGame() {
   overclockTimeLeft = 0;
   overclockDuration = 5;
   overclockSpeedBoost = 1.4;
+  ironDashUnlocked = false;
+  dashImmunityLeft = 0;
+  shardStormUnlocked = false;
+  shardStormCount = 0;
+  shardStormThreshold = 6;
+  shardPulseUnlocked = false;
+  phantomDashUnlocked = false;
+  phantomCooldownLeft = 0;
+  decoys = [];
+  overdriveUnlocked = false;
   visualBursts = [];
   isChoosingPowerUp = false;
   pendingPowerUpChoices = 0;
@@ -629,7 +702,9 @@ function startNextStage() {
   }
   shards = [];
   afterimages = [];
+  decoys = [];
   visualBursts = [];
+  totalTime += surviveTime;
   surviveTime = 0;
   spawnTimer = 0;
   shardSpawnTimer = 0;
@@ -656,10 +731,11 @@ function clamp(value, min, max) {
 }
 
 function checkPlayerEnemyCollision() {
+  if (ironDashUnlocked && dashImmunityLeft > 0) return false;
   for (const enemy of enemies) {
     if (isColliding(player, enemy)) {
       gameOver = true;
-      triggerDeathTransition(`Erwischt! Überlebt: ${surviveTime.toFixed(1)}s`);
+      triggerDeathTransition(`Erwischt! Überlebt: ${(totalTime + surviveTime).toFixed(1)}s`);
       return true;
     }
   }
@@ -713,7 +789,7 @@ function updateAfterimages(deltaSeconds) {
   }
 }
 
-function spawnVisualBurst(x, y, color, maxRadius = 90, lifetime = 0.2) {
+function spawnVisualBurst(x, y, color, maxRadius = 90, lifetime = 0.2, lineWidth = 4) {
   visualBursts.push({
     x,
     y,
@@ -722,6 +798,7 @@ function spawnVisualBurst(x, y, color, maxRadius = 90, lifetime = 0.2) {
     maxRadius,
     life: lifetime,
     maxLife: lifetime,
+    lineWidth,
   });
 }
 
@@ -814,6 +891,34 @@ function collectShards() {
       playerXp += gainedXp;
       statusText.textContent = `+${gainedXp} XP (${playerXp}/${xpToNextLevel})`;
 
+      const px = player.x + player.size / 2;
+      const py = player.y + player.size / 2;
+
+      // Shard Pulse: push nearby enemies on every shard collected
+      if (shardPulseUnlocked) {
+        for (const enemy of enemies) {
+          if (enemy.type === "ghost") continue;
+          const ex = enemy.x + enemy.size / 2;
+          const ey = enemy.y + enemy.size / 2;
+          const dist = Math.hypot(ex - px, ey - py);
+          if (dist < 180 && dist > 0.001) {
+            const swarmMult = enemy.type === "swarm" ? 7 : 1;
+            const force = (1 - dist / 180) * 80 * swarmMult;
+            enemy.x = clamp(enemy.x + (ex - px) / dist * force, 0, WORLD.width - enemy.size);
+            enemy.y = clamp(enemy.y + (ey - py) / dist * force, 0, WORLD.height - enemy.size);
+          }
+        }
+      }
+
+      // Shard Storm: accumulate counter, spawn bonus shard when threshold reached
+      if (shardStormUnlocked) {
+        shardStormCount += 1;
+        if (shardStormCount >= shardStormThreshold) {
+          shardStormCount = 0;
+          spawnShard();
+        }
+      }
+
       while (playerXp >= xpToNextLevel) {
         playerXp -= xpToNextLevel;
         playerLevel += 1;
@@ -833,7 +938,10 @@ function pickPowerUpOptions() {
 
   const picked = [];
   while (picked.length < 2 && pool.length > 0) {
-    const weights = pool.map((powerup) => powerup.rarity === "epic" ? 0.15 : powerup.rarity === "rare" ? 0.3 : 1);
+    const weights = pool.map((powerup) =>
+      powerup.rarity === "legendary" ? 0.06 :
+      powerup.rarity === "epic" ? 0.15 :
+      powerup.rarity === "rare" ? 0.3 : 1);
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
     let roll = Math.random() * totalWeight;
     let chosenIndex = 0;
@@ -1048,13 +1156,25 @@ function tryDash() {
     }
     spawnVisualBurst(originX + player.size / 2, originY + player.size / 2, "255,165,80", 70, 0.16);
     spawnVisualBurst(player.x + player.size / 2, player.y + player.size / 2, "255,205,130", 95, 0.2);
-    checkPlayerEnemyCollision();
+    if (!ironDashUnlocked) checkPlayerEnemyCollision();
   } else {
     dashTimeLeft = dashDurationCurrent;
     afterimageTimer = 0;
     spawnAfterimage();
   }
+
+  if (phantomDashUnlocked && phantomCooldownLeft <= 0) {
+    decoys.push({ x: preDashCX - player.size / 2, y: preDashCY - player.size / 2, size: player.size, life: 1, maxLife: 1 });
+    phantomCooldownLeft = 3;
+  }
+  if (ironDashUnlocked) {
+    dashImmunityLeft = dashDurationCurrent + 0.1;
+  }
+
   dashCooldownLeft = dashCooldownCurrent;
+  if (overdriveUnlocked) {
+    dashCooldownLeft = 0;
+  }
 
   if (dashShockwaveUnlocked) {
     for (const enemy of enemies) {
@@ -1112,7 +1232,10 @@ function tryShockwave() {
   }
 
   shockwaveCooldownLeft = SHOCKWAVE_COOLDOWN;
-  spawnVisualBurst(px, py, "255,170,90", Math.min(340, shockwaveRadiusCurrent), 0.26);
+  // Outer ring — slow, thin, full radius
+  spawnVisualBurst(px, py, "255,170,90", Math.min(340, shockwaveRadiusCurrent), 0.45, 4);
+  // Inner flash ring — fast, thick, half radius
+  spawnVisualBurst(px, py, "255,230,150", Math.min(340, shockwaveRadiusCurrent) * 0.55, 0.18, 10);
   statusText.textContent = `Shockwave! ${hitCount} Gegner weggestossen.`;
 }
 
@@ -1129,8 +1252,16 @@ function applyChaseMovement(enemy, enemyIndex, deltaSeconds, speed) {
 
   const distToPlayer = Math.hypot(enemyCenterX - playerCenterX, enemyCenterY - playerCenterY);
   const offsetScale = distToPlayer > 120 ? 1 : distToPlayer / 120;
-  let dx = (playerCenterX + dynamicOffsetX * offsetScale) - enemyCenterX;
-  let dy = (playerCenterY + dynamicOffsetY * offsetScale) - enemyCenterY;
+
+  let chaseTargetX = playerCenterX + dynamicOffsetX * offsetScale;
+  let chaseTargetY = playerCenterY + dynamicOffsetY * offsetScale;
+  if (decoys.length > 0) {
+    const decoy = decoys[0];
+    chaseTargetX = decoy.x + decoy.size / 2;
+    chaseTargetY = decoy.y + decoy.size / 2;
+  }
+  let dx = chaseTargetX - enemyCenterX;
+  let dy = chaseTargetY - enemyCenterY;
 
   let separationX = 0;
   let separationY = 0;
@@ -1341,7 +1472,7 @@ function checkMineCollision() {
       player.y + player.size > mine.y
     ) {
       gameOver = true;
-      triggerDeathTransition(`Mine getroffen! Überlebt: ${surviveTime.toFixed(1)}s`);
+      triggerDeathTransition(`Mine getroffen! Überlebt: ${(totalTime + surviveTime).toFixed(1)}s`);
       return;
     }
   }
@@ -1528,10 +1659,23 @@ function drawScene() {
     ctx.fillRect(img.x, img.y, img.size, img.size);
   }
 
+  // Draw phantom decoys
+  for (const decoy of decoys) {
+    const fadeAlpha = Math.min(1, decoy.life / decoy.maxLife) * 0.65;
+    ctx.globalAlpha = fadeAlpha;
+    ctx.fillStyle = "#4aa3ff";
+    ctx.fillRect(decoy.x, decoy.y, decoy.size, decoy.size);
+    ctx.globalAlpha = 1;
+    const pulse = 0.4 + Math.sin(surviveTime * 9) * 0.3;
+    ctx.strokeStyle = `rgba(74,163,255,${pulse.toFixed(2)})`;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(decoy.x - 5, decoy.y - 5, decoy.size + 10, decoy.size + 10);
+  }
+
   for (const burst of visualBursts) {
     const alpha = (burst.life / burst.maxLife) * 0.75;
     ctx.strokeStyle = `rgba(${burst.color},${alpha.toFixed(3)})`;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = burst.lineWidth ?? 4;
     ctx.beginPath();
     ctx.arc(burst.x, burst.y, burst.radius, 0, Math.PI * 2);
     ctx.stroke();
@@ -1550,6 +1694,13 @@ function drawScene() {
   if (overclockTimeLeft > 0) {
     ctx.fillStyle = "#f0c0ff";
     ctx.fillText(`⚡ OVERCLOCK ${overclockTimeLeft.toFixed(1)}s`, 12, 98);
+  }
+  if (decoys.length > 0) {
+    ctx.fillStyle = "#4aa3ff";
+    ctx.fillText(`👻 KOEDER ${decoys[0].life.toFixed(1)}s`, 12, 122);
+  } else if (phantomDashUnlocked && phantomCooldownLeft > 0) {
+    ctx.fillStyle = "#7a9acc";
+    ctx.fillText(`👻 Koeder in ${phantomCooldownLeft.toFixed(1)}s`, 12, 122);
   }
 
 }
@@ -1592,6 +1743,12 @@ function gameLoop(now) {
     dashCooldownLeft = Math.max(0, dashCooldownLeft - deltaSeconds);
     shockwaveCooldownLeft = Math.max(0, shockwaveCooldownLeft - deltaSeconds);
     overclockTimeLeft = Math.max(0, overclockTimeLeft - deltaSeconds);
+    dashImmunityLeft = Math.max(0, dashImmunityLeft - deltaSeconds);
+    phantomCooldownLeft = Math.max(0, phantomCooldownLeft - deltaSeconds);
+    for (let i = decoys.length - 1; i >= 0; i--) {
+      decoys[i].life -= deltaSeconds;
+      if (decoys[i].life <= 0) decoys.splice(i, 1);
+    }
     updateAfterimages(deltaSeconds);
     updateVisualBursts(deltaSeconds);
     updatePlayer(deltaSeconds);
@@ -1604,8 +1761,8 @@ function gameLoop(now) {
         const sy = shard.y + shard.size / 2;
         const dist = Math.hypot(sx - px, sy - py);
         if (dist < shardMagnetRadius && dist > 1) {
-          shard.x += ((px - sx) / dist) * 280 * deltaSeconds;
-          shard.y += ((py - sy) / dist) * 280 * deltaSeconds;
+          shard.x += ((px - sx) / dist) * 560 * deltaSeconds;
+          shard.y += ((py - sy) / dist) * 560 * deltaSeconds;
         }
       }
     }
@@ -1806,7 +1963,7 @@ function getRequiresLabel(id) {
 }
 
 function buildUpgradeGuide() {
-  const rarityOrder = { common: 0, rare: 1, epic: 2 };
+  const rarityOrder = { common: 0, rare: 1, epic: 2, legendary: 3 };
   const sorted = [...POWER_UP_POOL].sort((a, b) => rarityOrder[a.rarity] - rarityOrder[b.rarity]);
   upgradeGuideListEl.innerHTML = sorted.map(p => {
     const req = getRequiresLabel(p.id);

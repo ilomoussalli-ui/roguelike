@@ -141,6 +141,26 @@ h1 {
   color: #f0c0ff;
 }
 
+.powerup-option.legendary {
+  border-color: #c8a000;
+  background: #1a1400;
+}
+
+.powerup-option.legendary:hover {
+  border-color: #ffe566;
+  background: #2a2000;
+}
+
+.powerup-option.legendary .powerup-rarity {
+  background: #7a5000;
+  color: #ffe080;
+}
+
+.inventory-item.legendary { border-color: #c8a000; background: #141000; }
+.inventory-item.legendary .inventory-item-count { background: #3a2800; color: #ffe080; }
+
+.upgrade-guide-item.legendary { border-color: #c8a000; background: #141000; }
+
 canvas {
   display: block;
   border: 2px solid #3f4658;
@@ -579,6 +599,10 @@ canvas {
 .upgrade-guide-item.common { border-color: #3f907f; background: #0d1e1a; }
 .upgrade-guide-item.rare   { border-color: #b8742b; background: #1c1008; }
 .upgrade-guide-item.epic   { border-color: #9b3fc4; background: #160a22; }
+
+.upgrade-guide-item.rare .powerup-rarity   { background: #7a3f11; color: #ffd4aa; }
+.upgrade-guide-item.epic .powerup-rarity   { background: #5c1a80; color: #f0c0ff; }
+.upgrade-guide-item.legendary .powerup-rarity { background: #7a5000; color: #ffe080; }
 
 .upgrade-guide-item-title {
   display: flex;
