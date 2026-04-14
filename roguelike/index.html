@@ -7,7 +7,20 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <main class="container">
+
+  <div id="startmenu" class="startmenu-screen">
+    <div class="startmenu-panel">
+      <h2 class="startmenu-title">Simple Chase Game</h2>
+      <p id="startmenu-sub" class="startmenu-sub">Überlebe so lange wie möglich.</p>
+      <p id="startmenu-gameover" class="startmenu-gameover hidden"></p>
+      <button id="startmenu-btn" class="startmenu-btn" type="button">Spielen</button>
+      <p class="startmenu-controls">WASD bewegen &nbsp;·&nbsp; Leertaste Dash &nbsp;·&nbsp; Tab Inventar</p>
+    </div>
+  </div>
+
+  <div id="transition-overlay" class="transition-overlay"></div>
+
+  <main id="game-container" class="container hidden">
     <h1>Simple Chase Game</h1>
     <div class="game-shell">
       <div class="top-ui">

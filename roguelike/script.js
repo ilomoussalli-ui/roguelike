@@ -565,7 +565,7 @@ function checkPlayerEnemyCollision() {
   for (const enemy of enemies) {
     if (isColliding(player, enemy)) {
       gameOver = true;
-      statusText.textContent = `Verloren nach ${surviveTime.toFixed(1)} Sekunden.`;
+      triggerDeathTransition(`Erwischt! Überlebt: ${surviveTime.toFixed(1)}s`);
       return true;
     }
   }
@@ -1104,7 +1104,7 @@ function checkMineCollision() {
       player.y + player.size > mine.y
     ) {
       gameOver = true;
-      statusText.textContent = `Mine getroffen! Verloren nach ${surviveTime.toFixed(1)} Sekunden.`;
+      triggerDeathTransition(`Mine getroffen! Überlebt: ${surviveTime.toFixed(1)}s`);
       return;
     }
   }
@@ -1186,17 +1186,6 @@ function drawScene() {
     ctx.fillText(`⚡ OVERCLOCK ${overclockTimeLeft.toFixed(1)}s`, 12, 98);
   }
 
-  if (gameOver) {
-    ctx.fillStyle = "rgba(0,0,0,0.55)";
-    ctx.fillRect(0, 0, WORLD.width, WORLD.height);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 48px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("GAME OVER", WORLD.width / 2, WORLD.height / 2 - 10);
-    ctx.font = "22px Arial";
-    ctx.fillText("Druecke R zum Neustarten", WORLD.width / 2, WORLD.height / 2 + 30);
-    ctx.textAlign = "left";
-  }
 }
 
 function updateUiBars() {
@@ -1226,6 +1215,7 @@ function updateUiBars() {
 }
 
 function gameLoop(now) {
+  if (!gameLoopRunning) return;
   const deltaSeconds = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
 
@@ -1368,5 +1358,51 @@ window.addEventListener("keyup", (event) => {
   }
 });
 
-resetGame();
-requestAnimationFrame(gameLoop);
+// --- Start Menu ---
+const startmenuEl       = document.getElementById("startmenu");
+const gameContainerEl   = document.getElementById("game-container");
+const startmenuBtnEl    = document.getElementById("startmenu-btn");
+const startmenuSubEl    = document.getElementById("startmenu-sub");
+const startmenuGameoverEl = document.getElementById("startmenu-gameover");
+const transitionOverlayEl = document.getElementById("transition-overlay");
+
+let gameLoopRunning = false;
+
+function startGame() {
+  startmenuEl.classList.add("hidden");
+  gameContainerEl.classList.remove("hidden");
+  resetGame();
+  gameLoopRunning = true;
+  requestAnimationFrame(gameLoop);
+}
+
+function showStartMenu(gameoverMsg) {
+  if (gameoverMsg) {
+    startmenuSubEl.classList.add("hidden");
+    startmenuGameoverEl.textContent = gameoverMsg;
+    startmenuGameoverEl.classList.remove("hidden");
+    startmenuBtnEl.textContent = "Nochmal spielen";
+  } else {
+    startmenuSubEl.classList.remove("hidden");
+    startmenuGameoverEl.classList.add("hidden");
+    startmenuBtnEl.textContent = "Spielen";
+  }
+  startmenuEl.classList.remove("hidden");
+  startmenuEl.classList.remove("fade-in");
+  void startmenuEl.offsetWidth; // reflow to restart animation
+  startmenuEl.classList.add("fade-in");
+  gameContainerEl.classList.add("hidden");
+}
+
+function triggerDeathTransition(msg) {
+  gameLoopRunning = false;
+  transitionOverlayEl.classList.remove("death-animate");
+  void transitionOverlayEl.offsetWidth;
+  transitionOverlayEl.classList.add("death-animate");
+  setTimeout(() => {
+    showStartMenu(msg);
+    transitionOverlayEl.classList.remove("death-animate");
+  }, 950);
+}
+
+startmenuBtnEl.addEventListener("click", startGame);
