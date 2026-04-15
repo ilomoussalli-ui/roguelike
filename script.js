@@ -202,18 +202,19 @@ const POWER_UP_POOL = [
   {
     id: "quick-recharge",
     title: "Quick Recharge",
-    description: "Dash-Cooldown -0.45s (Minimum 2.0s).",
+    description: "Dash-Cooldown -1.0s (Minimum 2.0s).",
     rarity: "common",
     unique: false,
+    requires: () => !overdriveUnlocked,
     apply: () => {
-      dashCooldownCurrent = Math.max(2.0, dashCooldownCurrent - 0.45);
+      dashCooldownCurrent = Math.max(2.0, dashCooldownCurrent - 1.0);
       dashCooldownLeft = Math.min(dashCooldownLeft, dashCooldownCurrent);
     },
   },
   {
     id: "phase-burst",
     title: "Phase Burst",
-    description: "Dash laenger und schneller.",
+    description: "Dash länger und schneller.",
     rarity: "common",
     unique: false,
     apply: () => {
@@ -244,7 +245,7 @@ const POWER_UP_POOL = [
   {
     id: "shockwave",
     title: "Shockwave",
-    description: "Taste F: Schockwelle stoesst Gegner weg (10s Cooldown).",
+    description: "Taste F: Schockwelle stößt Gegner weg (10s Cooldown).",
     rarity: "rare",
     unique: true,
     apply: () => {
@@ -255,7 +256,7 @@ const POWER_UP_POOL = [
   {
     id: "shockwave-radius",
     title: "Wide Shockwave",
-    description: "Schockwellen-Radius wird groesser (+18%) — gilt fuer normale & Dash-Schockwelle.",
+    description: "Schockwellen-Radius wird größer (+18%) — gilt für normale & Dash-Schockwelle.",
     rarity: "common",
     unique: false,
     requires: () => shockwaveUnlocked || dashShockwaveUnlocked,
@@ -267,7 +268,7 @@ const POWER_UP_POOL = [
   {
     id: "shockwave-force",
     title: "Force Surge",
-    description: "Schockwelle stoesst Gegner weiter weg (+28%) — gilt fuer normale & Dash-Schockwelle.",
+    description: "Schockwelle stößt Gegner weiter weg (+28%) — gilt für normale & Dash-Schockwelle.",
     rarity: "common",
     unique: false,
     requires: () => shockwaveUnlocked || dashShockwaveUnlocked,
@@ -279,7 +280,7 @@ const POWER_UP_POOL = [
   {
     id: "shard-magnet",
     title: "Shard Magnet",
-    description: "Shards in der Naehe werden automatisch zu dir hingezogen.",
+    description: "Shards in der Nähe werden automatisch zu dir hingezogen.",
     rarity: "rare",
     unique: true,
     apply: () => {
@@ -299,7 +300,7 @@ const POWER_UP_POOL = [
   {
     id: "overclock",
     title: "Overclock",
-    description: "Nach jedem Dash bist du fuer 5s 40% schneller.",
+    description: "Nach jedem Dash bist du für 5s 40% schneller.",
     rarity: "rare",
     unique: true,
     apply: () => {
@@ -309,7 +310,7 @@ const POWER_UP_POOL = [
   {
     id: "magnet-range",
     title: "Wide Pull",
-    description: "Shard Magnet zieht Shards aus groesserer Reichweite an (+70px).",
+    description: "Shard Magnet zieht Shards aus größerer Reichweite an (+70px).",
     rarity: "common",
     unique: false,
     requires: () => shardMagnetUnlocked,
@@ -331,7 +332,7 @@ const POWER_UP_POOL = [
   {
     id: "overclock-duration",
     title: "Overclock Duration",
-    description: "Overclock haelt 2s laenger an.",
+    description: "Overclock hält 2s länger an.",
     rarity: "common",
     unique: false,
     requires: () => overclockUnlocked,
@@ -342,20 +343,21 @@ const POWER_UP_POOL = [
   {
     id: "teleport-range",
     title: "Long Blink",
-    description: "Teleport-Dash geht weiter nach vorne.",
+    description: "Teleport-Dash geht 35% weiter nach vorne.",
     rarity: "common",
     unique: false,
     requires: () => teleportDashUnlocked,
     apply: () => {
-      teleportDashRangeMultiplier *= 1.18;
+      teleportDashRangeMultiplier *= 1.35;
     },
   },
   {
     id: "iron-dash",
     title: "Iron Dash",
-    description: "Du bist waehrend des Dash unverwundbar.",
+    description: "Du bist während des Dash unverwundbar.",
     rarity: "rare",
     unique: true,
+    requires: () => !teleportDashUnlocked,
     apply: () => {
       ironDashUnlocked = true;
     },
@@ -374,7 +376,7 @@ const POWER_UP_POOL = [
   {
     id: "phantom",
     title: "Phantom",
-    description: "Dash hinterlaesst einen Koeder — Gegner jagen ihn fuer 2s.",
+    description: "Dash hinterlässt einen Köder — Gegner jagen ihn für 2s.",
     rarity: "epic",
     unique: true,
     apply: () => {
@@ -384,7 +386,7 @@ const POWER_UP_POOL = [
   {
     id: "shard-pulse",
     title: "Shard Pulse",
-    description: "Jeder eingesammelte Shard stoesst nahegelegene Gegner weg.",
+    description: "Jeder eingesammelte Shard stößt nahegelegene Gegner weg.",
     rarity: "rare",
     unique: true,
     apply: () => {
@@ -1016,7 +1018,7 @@ function collectShards() {
         xpToNextLevel = getXpForLevel(playerLevel);
         pendingPowerUpChoices += 1;
         spawnFloatingText(player.x + player.size / 2, player.y - 10, "LEVEL UP!", "#6fffe9", 22);
-        statusText.textContent = `Level Up! Waehle ein Power-Up (Level ${playerLevel}).`;
+        statusText.textContent = `Level Up! Wähle ein Power-Up (Level ${playerLevel}).`;
       }
     }
   }
@@ -1916,10 +1918,10 @@ function drawScene() {
   }
   if (decoys.length > 0) {
     ctx.fillStyle = "#4aa3ff";
-    ctx.fillText(`👻 KOEDER ${decoys[0].life.toFixed(1)}s`, 12, 122);
+    ctx.fillText(`👻 KÖDER ${decoys[0].life.toFixed(1)}s`, 12, 122);
   } else if (phantomDashUnlocked && phantomCooldownLeft > 0) {
     ctx.fillStyle = "#7a9acc";
-    ctx.fillText(`👻 Koeder in ${phantomCooldownLeft.toFixed(1)}s`, 12, 122);
+    ctx.fillText(`👻 Köder in ${phantomCooldownLeft.toFixed(1)}s`, 12, 122);
   }
 
   // Floating texts
