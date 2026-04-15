@@ -2401,3 +2401,6 @@ document.getElementById("btn-show-enemies").addEventListener("click", () => {
 document.getElementById("enemy-guide-close").addEventListener("click", () => {
   enemyGuideOverlayEl.classList.add("hidden");
 });
+
+// Initialize start menu state on page load (sets up highscore display etc.)
+showStartMenu();
