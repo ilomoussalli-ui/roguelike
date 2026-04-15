@@ -15,6 +15,7 @@ const powerupOverlayEl = document.getElementById("powerup-overlay");
 const powerupOption1El = document.getElementById("powerup-option-1");
 const powerupOption2El = document.getElementById("powerup-option-2");
 const inventoryOverlayEl = document.getElementById("inventory-overlay");
+const pauseOverlayEl = document.getElementById("pause-overlay");
 const inventoryListEl = document.getElementById("inventory-list");
 const inventoryEmptyEl = document.getElementById("inventory-empty");
 const lcOverlayEl = document.getElementById("levelcomplete-overlay");
@@ -46,6 +47,16 @@ const BASE_XP_PER_LEVEL = 8;
 const XP_LEVEL_SCALE = 1.35;
 const BASE_PLAYER_SPEED = PLAYER_SPEED;
 const BASE_DASH_SPEED = DASH_SPEED;
+const ENEMY_TYPE_NAMES = {
+  normal: "Normaler Gegner",
+  rusher: "Stürmer",
+  swarm: "Schwarm",
+  ghost: "Geist",
+  blocker: "Blocker",
+  ankerer: "Ankerer",
+  charger: "Angreifer",
+  mine: "Mine",
+};
 const BASE_DASH_DURATION = DASH_DURATION;
 const BASE_DASH_COOLDOWN = DASH_COOLDOWN;
 const SHOCKWAVE_COOLDOWN = 7;
@@ -463,6 +474,9 @@ let shakeDurationTotal;
 let shakeTimeLeft;
 let particles;
 let floatingTexts;
+let isPaused;
+let deathCause;
+let deathBuildSnapshot;
 
 function randomBetween(min, max) {
   return Math.random() * (max - min) + min;
@@ -667,6 +681,7 @@ function resetGame() {
   pendingPowerUpChoices = 0;
   currentPowerUpOptions = [];
   availablePowerUps = POWER_UP_POOL.map((powerup) => ({ ...powerup }));
+  isPaused = false;
   powerupOverlayEl.classList.add("hidden");
   shockwaveBoxEl.classList.add("hidden");
   spawnMines();
@@ -717,6 +732,8 @@ function startNextStage() {
   afterimages = [];
   enemyAfterimages = [];
   decoys = [];
+  phantomCooldownLeft = 0;
+  isPaused = false;
   visualBursts = [];
   particles = [];
   floatingTexts = [];
@@ -751,6 +768,8 @@ function checkPlayerEnemyCollision() {
   if (ironDashUnlocked && dashImmunityLeft > 0) return false;
   for (const enemy of enemies) {
     if (isColliding(player, enemy)) {
+      deathCause = enemy.type;
+      deathBuildSnapshot = [...playerInventory];
       gameOver = true;
       triggerShake(10, 0.35);
       triggerDeathTransition(`Erwischt! Überlebt: ${(totalTime + surviveTime).toFixed(1)}s`);
@@ -1083,6 +1102,12 @@ function closeInventory() {
   inventoryOverlayEl.classList.add("hidden");
 }
 
+function togglePause() {
+  if (gameOver || isLevelComplete || isChoosingPowerUp) return;
+  isPaused = !isPaused;
+  pauseOverlayEl.classList.toggle("hidden", !isPaused);
+}
+
 function proceedFromLevelComplete() {
   isLevelComplete = false;
   lcOverlayEl.classList.add("hidden");
@@ -1218,12 +1243,19 @@ function tryDash() {
         }
       }
       if (!freed) {
+        let freedBackward = false;
         for (let push = 8; push <= teleportDistance; push += 8) {
           player.x = clamp(destX - dashDir.x * push, 0, WORLD.width - player.size);
           player.y = clamp(destY - dashDir.y * push, 0, WORLD.height - player.size);
           if (!currentMap.walls.some((w) => isCollidingWithWall(player, w))) {
+            freedBackward = true;
             break;
           }
+        }
+        if (!freedBackward) {
+          player.x = originX;
+          player.y = originY;
+          spawnFloatingText("Blockiert!", player.x + player.size / 2, player.y, "#ff8844");
         }
       }
     }
@@ -1550,6 +1582,8 @@ function checkMineCollision() {
       player.y < mine.y + MAP_MINE_SIZE &&
       player.y + player.size > mine.y
     ) {
+      deathCause = "mine";
+      deathBuildSnapshot = [...playerInventory];
       gameOver = true;
       triggerShake(10, 0.35);
       triggerDeathTransition(`Mine getroffen! Überlebt: ${(totalTime + surviveTime).toFixed(1)}s`);
@@ -1796,6 +1830,68 @@ function drawScene() {
     ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
   }
 
+  // Visual range/dash indicators
+  const playerCX = player.x + player.size / 2;
+  const playerCY = player.y + player.size / 2;
+
+  if (shardMagnetUnlocked) {
+    ctx.beginPath();
+    ctx.arc(playerCX, playerCY, shardMagnetRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(100,200,255,0.18)";
+    ctx.setLineDash([6, 10]);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  if (shockwaveUnlocked && shockwaveCooldownLeft <= 0) {
+    ctx.beginPath();
+    ctx.arc(playerCX, playerCY, shockwaveRadiusCurrent, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(200,130,255,0.28)";
+    ctx.setLineDash([8, 12]);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  if (dashCooldownLeft <= 0 && dashTimeLeft <= 0) {
+    let ddx = 0, ddy = 0;
+    if (keys["w"] || keys["arrowup"])    ddy -= 1;
+    if (keys["s"] || keys["arrowdown"])  ddy += 1;
+    if (keys["a"] || keys["arrowleft"])  ddx -= 1;
+    if (keys["d"] || keys["arrowright"]) ddx += 1;
+    if (ddx !== 0 || ddy !== 0) {
+      const len = Math.sqrt(ddx * ddx + ddy * ddy);
+      ddx /= len; ddy /= len;
+      if (teleportDashUnlocked) {
+        const teleportDist = dashSpeedCurrent * dashDurationCurrent * teleportDashRangeMultiplier;
+        const destX = clamp(player.x + ddx * teleportDist, 0, WORLD.width - player.size);
+        const destY = clamp(player.y + ddy * teleportDist, 0, WORLD.height - player.size);
+        ctx.strokeStyle = "rgba(255,165,80,0.45)";
+        ctx.setLineDash([5, 7]);
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(destX, destY, player.size, player.size);
+        ctx.setLineDash([]);
+      } else {
+        const dashDist = dashSpeedCurrent * dashDurationCurrent;
+        const endX = playerCX + ddx * dashDist;
+        const endY = playerCY + ddy * dashDist;
+        ctx.beginPath();
+        ctx.moveTo(playerCX, playerCY);
+        ctx.lineTo(endX, endY);
+        ctx.strokeStyle = "rgba(74,163,255,0.35)";
+        ctx.setLineDash([8, 8]);
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(endX, endY, 4, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(74,163,255,0.5)";
+        ctx.fill();
+      }
+    }
+  }
+
   drawRect(player);
   for (const enemy of enemies) {
     drawEnemy(enemy, surviveTime);
@@ -1872,7 +1968,7 @@ function gameLoop(now) {
   const deltaSeconds = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
 
-  if (!gameOver && !isChoosingPowerUp && !isLevelComplete && !isInventoryOpen) {
+  if (!gameOver && !isChoosingPowerUp && !isLevelComplete && !isInventoryOpen && !isPaused) {
     surviveTime += deltaSeconds;
     spawnTimer += deltaSeconds;
     shardSpawnTimer += deltaSeconds;
@@ -2000,7 +2096,20 @@ window.addEventListener("keydown", (event) => {
 
   if (event.code === "Tab") {
     event.preventDefault();
+    if (isPaused) return;
     isInventoryOpen ? closeInventory() : openInventory();
+    return;
+  }
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    if (isInventoryOpen) { closeInventory(); return; }
+    togglePause();
+    return;
+  }
+
+  if (key === "p") {
+    togglePause();
     return;
   }
 
@@ -2035,6 +2144,8 @@ window.addEventListener("keydown", (event) => {
     }
   }
 
+  if (isPaused) return;
+
   if (key in keys) {
     keys[key] = true;
   }
@@ -2063,7 +2174,11 @@ const gameContainerEl   = document.getElementById("game-container");
 const startmenuBtnEl    = document.getElementById("startmenu-btn");
 const startmenuSubEl    = document.getElementById("startmenu-sub");
 const startmenuGameoverEl = document.getElementById("startmenu-gameover");
-const transitionOverlayEl = document.getElementById("transition-overlay");
+const startmenuRecapEl      = document.getElementById("startmenu-recap");
+const startmenuCauseEl      = document.getElementById("startmenu-cause");
+const startmenuBuildEl      = document.getElementById("startmenu-build");
+const startmenuHighscoreEl  = document.getElementById("startmenu-highscore");
+const transitionOverlayEl   = document.getElementById("transition-overlay");
 
 let gameLoopRunning = false;
 
@@ -2081,11 +2196,30 @@ function showStartMenu(gameoverMsg) {
     startmenuGameoverEl.textContent = gameoverMsg;
     startmenuGameoverEl.classList.remove("hidden");
     startmenuBtnEl.textContent = "Nochmal spielen";
+
+    const causeName = ENEMY_TYPE_NAMES[deathCause] || deathCause || "Unbekannt";
+    startmenuCauseEl.textContent = `Getötet von: ${causeName} · Stage ${stageNumber}`;
+    startmenuBuildEl.innerHTML = deathBuildSnapshot && deathBuildSnapshot.length > 0
+      ? deathBuildSnapshot.map(e =>
+          `<span class="recap-item ${e.rarity}">${e.title}${e.count > 1 ? ` x${e.count}` : ""}</span>`
+        ).join("")
+      : `<span class="recap-empty">Keine Upgrades</span>`;
+    startmenuRecapEl.classList.remove("hidden");
   } else {
     startmenuSubEl.classList.remove("hidden");
     startmenuGameoverEl.classList.add("hidden");
+    startmenuRecapEl.classList.add("hidden");
     startmenuBtnEl.textContent = "Spielen";
   }
+  const hs = loadHighscore();
+  if (hs.level) {
+    startmenuHighscoreEl.textContent =
+      `Bestleistung: Level ${hs.level}  ·  ${hs.time.toFixed(1)}s  ·  ${hs.upgrades} Upgrades`;
+    startmenuHighscoreEl.classList.remove("hidden");
+  } else {
+    startmenuHighscoreEl.classList.add("hidden");
+  }
+
   startmenuEl.classList.remove("hidden");
   startmenuEl.classList.remove("fade-in");
   void startmenuEl.offsetWidth; // reflow to restart animation
@@ -2093,7 +2227,29 @@ function showStartMenu(gameoverMsg) {
   gameContainerEl.classList.add("hidden");
 }
 
+const HS_KEY = "shardrush_highscore";
+
+function loadHighscore() {
+  try { return JSON.parse(localStorage.getItem(HS_KEY)) || {}; } catch { return {}; }
+}
+
+function saveHighscoreIfBetter() {
+  const hs = loadHighscore();
+  const runTime = totalTime + surviveTime;
+  const changed =
+    (playerLevel > (hs.level || 0)) ||
+    (runTime > (hs.time || 0)) ||
+    (playerInventory.length > (hs.upgrades || 0));
+  if (!changed) return;
+  localStorage.setItem(HS_KEY, JSON.stringify({
+    level: Math.max(playerLevel, hs.level || 0),
+    time: Math.max(runTime, hs.time || 0),
+    upgrades: Math.max(playerInventory.length, hs.upgrades || 0),
+  }));
+}
+
 function triggerDeathTransition(msg) {
+  saveHighscoreIfBetter();
   gameLoopRunning = false;
   transitionOverlayEl.classList.remove("death-animate");
   void transitionOverlayEl.offsetWidth;

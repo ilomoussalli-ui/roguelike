@@ -13,11 +13,16 @@
       <h2 class="startmenu-title">Shard Rush</h2>
       <p id="startmenu-sub" class="startmenu-sub">Überlebe so lange wie möglich.</p>
       <p id="startmenu-gameover" class="startmenu-gameover hidden"></p>
+      <div id="startmenu-recap" class="startmenu-recap hidden">
+        <p id="startmenu-cause" class="startmenu-cause"></p>
+        <div id="startmenu-build" class="startmenu-build"></div>
+      </div>
       <button id="startmenu-btn" class="startmenu-btn" type="button">Spielen</button>
       <div class="startmenu-guide-btns">
         <button id="btn-show-upgrades" class="startmenu-guide-btn" type="button">Upgrades</button>
         <button id="btn-show-enemies"  class="startmenu-guide-btn" type="button">Gegner</button>
       </div>
+      <p id="startmenu-highscore" class="startmenu-highscore hidden"></p>
       <p class="startmenu-controls">WASD bewegen &nbsp;·&nbsp; Leertaste Dash &nbsp;·&nbsp; Tab Inventar</p>
     </div>
   </div>
@@ -79,6 +84,13 @@
         </div>
       </div>
 
+      <div id="pause-overlay" class="pause-overlay hidden">
+        <div class="pause-panel">
+          <h2>Pausiert</h2>
+          <p class="pause-sub">ESC oder P zum Weiterspielen</p>
+        </div>
+      </div>
+
       <div id="inventory-overlay" class="inventory-overlay hidden">
         <div class="inventory-panel">
           <h2>Inventar</h2>
@@ -114,7 +126,7 @@
         </div>
       </div>
     </div>
-    <p class="hint">Steuerung: <strong>WASD</strong> | <strong>Leertaste</strong> = Dash | <strong>Rechtsklick / F</strong> = Shockwave (falls freigeschaltet) | <strong>Tab</strong> = Inventar | <strong>R</strong> Neustart</p>
+    <p class="hint">Steuerung: <strong>WASD</strong> | <strong>Leertaste</strong> = Dash | <strong>Rechtsklick / F</strong> = Shockwave (falls freigeschaltet) | <strong>Tab</strong> = Inventar | <strong>ESC / P</strong> = Pause | <strong>R</strong> Neustart</p>
     <p id="status" class="status">Laufe weg vor dem Gegner.</p>
   </main>
 

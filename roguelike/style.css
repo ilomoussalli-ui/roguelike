@@ -242,6 +242,38 @@ canvas {
   background: linear-gradient(90deg, #ff9a3d, #ffd39a);
 }
 
+.pause-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(7, 10, 16, 0.70);
+  border-radius: 8px;
+  z-index: 8;
+  backdrop-filter: blur(2px);
+}
+
+.pause-panel {
+  text-align: center;
+  padding: 32px 48px;
+  border: 1px solid #3b4864;
+  border-radius: 14px;
+  background: rgba(12, 16, 26, 0.95);
+}
+
+.pause-panel h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  color: #d6e4ff;
+  letter-spacing: 2px;
+}
+
+.pause-sub {
+  margin: 0;
+  font-size: 14px;
+  color: #607090;
+}
+
 .inventory-overlay {
   position: absolute;
   inset: 0;
@@ -689,6 +721,12 @@ canvas {
   color: #6080a0;
 }
 
+.startmenu-highscore {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: #4a6070;
+}
+
 .startmenu-controls {
   margin: 0;
   font-size: 13px;
@@ -700,6 +738,45 @@ canvas {
   font-size: 15px;
   color: #ff6b6b;
   font-weight: bold;
+}
+
+.startmenu-recap {
+  width: 100%;
+  margin: 10px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid #2a3550;
+  border-radius: 10px;
+  background: rgba(10, 14, 22, 0.7);
+  text-align: left;
+}
+
+.startmenu-cause {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #a0b4cc;
+}
+
+.startmenu-build {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.recap-item {
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.recap-item.common  { background: #1e2a1e; color: #7ec87e; border: 1px solid #2e4a2e; }
+.recap-item.rare    { background: #1a1e38; color: #6fa0ff; border: 1px solid #2a3060; }
+.recap-item.epic    { background: #2a1a38; color: #c07aff; border: 1px solid #4a2a60; }
+.recap-item.legendary { background: #2a1f10; color: #ffb84d; border: 1px solid #5a3a10; }
+
+.recap-empty {
+  font-size: 12px;
+  color: #3a5060;
 }
 
 .transition-overlay {
