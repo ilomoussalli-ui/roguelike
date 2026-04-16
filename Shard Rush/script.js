@@ -32,6 +32,329 @@ const WORLD = {
   height: canvas.height,
 };
 
+const SoundSystem = (() => {
+  let ac = null;
+  function getCtx() {
+    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === "suspended") ac.resume();
+    return ac;
+  }
+  function tone(freq, type, duration, gain, delay = 0) {
+    try {
+      const c = getCtx();
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.connect(g);
+      g.connect(c.destination);
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, c.currentTime + delay);
+      g.gain.setValueAtTime(0.001, c.currentTime + delay);
+      g.gain.linearRampToValueAtTime(gain, c.currentTime + delay + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + delay + duration);
+      osc.start(c.currentTime + delay);
+      osc.stop(c.currentTime + delay + duration + 0.05);
+    } catch (_) {}
+  }
+  function sweep(freqStart, freqEnd, type, duration, gain, delay = 0) {
+    try {
+      const c = getCtx();
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.connect(g);
+      g.connect(c.destination);
+      osc.type = type;
+      osc.frequency.setValueAtTime(freqStart, c.currentTime + delay);
+      osc.frequency.exponentialRampToValueAtTime(freqEnd, c.currentTime + delay + duration);
+      g.gain.setValueAtTime(0.001, c.currentTime + delay);
+      g.gain.linearRampToValueAtTime(gain, c.currentTime + delay + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + delay + duration);
+      osc.start(c.currentTime + delay);
+      osc.stop(c.currentTime + delay + duration + 0.05);
+    } catch (_) {}
+  }
+  return {
+    dash() {
+      sweep(420, 160, "sine", 0.13, 0.12);
+      sweep(600, 220, "triangle", 0.09, 0.06, 0.01);
+    },
+    shockwave() {
+      sweep(90, 28, "triangle", 0.55, 0.22);
+      sweep(320, 120, "sine", 0.4, 0.11, 0.04);
+    },
+    collectShard(rarity) {
+      const freq = rarity === "epic" ? 1400 : rarity === "rare" ? 1100 : 880;
+      tone(freq, "sine", 0.14, 0.09);
+    },
+    levelUp() {
+      [523, 659, 784, 1047].forEach((f, i) => tone(f, "sine", 0.16, 0.13, i * 0.085));
+    },
+    powerUpOpen() {
+      sweep(200, 700, "sine", 0.35, 0.1);
+      sweep(280, 860, "triangle", 0.28, 0.05, 0.05);
+    },
+    powerUpSelect(rarity) {
+      if (rarity === "legendary") {
+        tone(440, "sine", 0.4, 0.12);
+        tone(550, "sine", 0.4, 0.1,  0.025);
+        tone(660, "sine", 0.4, 0.09, 0.05);
+        tone(880, "sine", 0.35, 0.08, 0.075);
+      } else if (rarity === "epic") {
+        tone(660,  "sine", 0.3, 0.12);
+        tone(990,  "sine", 0.3, 0.1,  0.025);
+        tone(1320, "sine", 0.25, 0.07, 0.05);
+      } else if (rarity === "rare") {
+        tone(550, "sine", 0.25, 0.12);
+        tone(825, "sine", 0.25, 0.09, 0.03);
+      } else {
+        tone(440, "sine", 0.2, 0.1);
+        tone(660, "sine", 0.2, 0.08, 0.03);
+      }
+    },
+    stageComplete() {
+      tone(659,  "sine", 0.18, 0.13);
+      tone(784,  "sine", 0.18, 0.12, 0.1);
+      tone(1047, "sine", 0.3,  0.14, 0.2);
+    },
+    death() {
+      sweep(350, 55, "sine",     0.9, 0.15);
+      sweep(200, 38, "triangle", 0.8, 0.08, 0.1);
+    },
+  };
+})();
+
+const MusicSystem = (() => {
+  let ac = null;
+  let masterGain = null;
+  let noiseBuffer = null;
+  let isRunning = false;
+  let schedulerTimer = null;
+  let nextStepTime = 0;
+  let stepIndex = 0;          // 0..31  (32 16th-note steps = 2 bars)
+
+  const LOOKAHEAD         = 0.14;
+  const SCHEDULE_INTERVAL = 55;
+  const LOOP_STEPS        = 32;
+
+  // ── Note frequencies (Hz) ────────────────────────────────────────────
+  // A minor / A minor pentatonic, 2-octave span
+  const A2=110.00, C3=130.81, D3=146.83, E3=164.81, F3=174.61,
+        G3=196.00, A3=220.00, C4=261.63, E4=329.63, F2=87.31,
+        A4=440.00, C5=523.25, D5=587.33, E5=659.25, G5=783.99;
+
+  // ── Chord pads: Am (bar 1) → F (bar 2) ──────────────────────────────
+  // Each entry is an array of frequencies played together as a soft pad
+  const CHORDS = [
+    [A2, E3, A3, C4],   // Am : A  E  A  C
+    [F2, C3, F3, A3],   // F  : F  C  F  A
+  ];
+
+  // ── Step patterns ────────────────────────────────────────────────────
+  // Each pattern is an array of [stepIndex, param…] entries.
+  // Three tiers indexed by getPatIdx(): 0=low, 1=medium, 2=high.
+
+  // Kick  [step, vol]
+  const KICK = [
+    [[0,1.0],[16,0.95]],                                                              // half-time
+    [[0,1.0],[8,0.9],[16,0.95],[24,0.9]],                                             // 4-on-floor
+    [[0,1.0],[6,0.38],[8,0.9],[13,0.3],[16,0.95],[22,0.38],[24,0.9],[29,0.3]],        // syncopated
+  ];
+
+  // Snare / clap  [step, vol]
+  const SNARE = [
+    [],
+    [[8,0.65],[24,0.65]],
+    [[8,0.82],[18,0.38],[24,0.82],[27,0.44]],
+  ];
+
+  // Hi-hat  [step, vol]
+  const HIHAT = [
+    [[4,0.18],[12,0.18],[20,0.18],[28,0.18]],                                         // upbeats only
+    Array.from({length:16}, (_, i) => [i * 2, i % 2 === 0 ? 0.14 : 0.22]),           // 8th notes
+    Array.from({length:32}, (_, i) => [i, [0.26,0.10,0.20,0.10,0.22,0.10,0.20,0.10][i % 8]]), // 16ths
+  ];
+
+  // Bass  [step, freqHz, vol]
+  const BASS = [
+    [[0,A2,0.72],[16,F2,0.72]],
+    [[0,A2,0.82],[6,E3,0.44],[8,A2,0.65],[12,D3,0.40],
+     [16,F2,0.82],[22,C3,0.44],[24,F2,0.65],[28,A3,0.40]],
+    [[0,A2,0.90],[2,A2,0.44],[4,E3,0.62],[6,G3,0.44],
+     [8,A2,0.72],[10,C3,0.44],[12,D3,0.55],[14,E3,0.50],
+     [16,F2,0.90],[18,F2,0.44],[20,C3,0.62],[22,A3,0.44],
+     [24,F2,0.72],[26,G3,0.44],[28,F3,0.55],[30,A2,0.50]],
+  ];
+
+  // Lead melody  [step, freqHz, vol]
+  const LEAD = [
+    [],   // silence at low intensity
+    [[2,E5,0.20],[6,C5,0.22],[8,D5,0.18],[12,E5,0.22],
+     [18,C5,0.20],[20,A4,0.18],[24,C5,0.20],[28,D5,0.20]],
+    [[0,A4,0.18],[2,E5,0.28],[4,D5,0.20],[6,E5,0.22],
+     [8,C5,0.25],[10,D5,0.20],[12,E5,0.22],[14,G5,0.20],
+     [16,A4,0.18],[18,E5,0.28],[20,D5,0.20],[22,C5,0.22],
+     [24,A4,0.20],[26,C5,0.20],[28,D5,0.22],[30,E5,0.20]],
+  ];
+
+  // ── Helpers ──────────────────────────────────────────────────────────
+  function initCtx() {
+    if (ac) return;
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = ac.createGain();
+    masterGain.gain.value = 0.45;
+    masterGain.connect(ac.destination);
+    const len = Math.ceil(ac.sampleRate * 0.5);
+    noiseBuffer = ac.createBuffer(1, len, ac.sampleRate);
+    const d = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  }
+
+  function getIntensity() {
+    const sp = Math.min((stageNumber - 1) / 9, 1);
+    const tp = stageGoalTime > 0 ? Math.min(surviveTime / stageGoalTime, 1) : 0;
+    return sp * 0.65 + tp * 0.35;
+  }
+
+  function getBPM()     { return 88 + getIntensity() * 72; }   // 88 → 160
+  function getStepDur() { return 15 / getBPM(); }               // 60/(BPM*4), 16th note
+  function getPatIdx(n) { return n < 0.35 ? 0 : n < 0.65 ? 1 : 2; }
+
+  // ── Synth voices ─────────────────────────────────────────────────────
+  function kick(t, vol) {
+    const osc = ac.createOscillator(), g = ac.createGain();
+    osc.connect(g); g.connect(masterGain);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(155, t);
+    osc.frequency.exponentialRampToValueAtTime(38, t + 0.08);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    osc.start(t); osc.stop(t + 0.26);
+  }
+
+  function snare(t, vol) {
+    // Noise body
+    const src = ac.createBufferSource(), bf = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = noiseBuffer;
+    bf.type = "bandpass"; bf.frequency.value = 1800; bf.Q.value = 0.7;
+    src.connect(bf); bf.connect(g); g.connect(masterGain);
+    g.gain.setValueAtTime(vol * 0.85, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+    src.start(t); src.stop(t + 0.15);
+    // Tonal snap
+    const osc = ac.createOscillator(), og = ac.createGain();
+    osc.connect(og); og.connect(masterGain);
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.exponentialRampToValueAtTime(80, t + 0.04);
+    og.gain.setValueAtTime(vol * 0.28, t);
+    og.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    osc.start(t); osc.stop(t + 0.07);
+  }
+
+  function hihat(t, vol) {
+    const src = ac.createBufferSource(), hf = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = noiseBuffer;
+    hf.type = "highpass"; hf.frequency.value = 9500;
+    src.connect(hf); hf.connect(g); g.connect(masterGain);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.055);
+    src.start(t); src.stop(t + 0.07);
+  }
+
+  function bass(t, freq, vol, dur) {
+    const osc = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain();
+    osc.connect(lp); lp.connect(g); g.connect(masterGain);
+    osc.type = "sawtooth"; osc.frequency.value = freq;
+    lp.type = "lowpass"; lp.frequency.value = 380; lp.Q.value = 2.8;
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.linearRampToValueAtTime(vol * 0.38, t + 0.018);
+    g.gain.setValueAtTime(vol * 0.38, Math.max(t + 0.02, t + dur - 0.05));
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.start(t); osc.stop(t + dur + 0.05);
+  }
+
+  function pad(t, freqs, dur) {
+    // 3 detuned sines per note → chorus width
+    for (const freq of freqs) {
+      for (const det of [-7, 0, 7]) {
+        const osc = ac.createOscillator(), g = ac.createGain();
+        osc.connect(g); g.connect(masterGain);
+        osc.type = "sine"; osc.frequency.value = freq; osc.detune.value = det;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.022, t + 0.45);        // slow attack
+        g.gain.setValueAtTime(0.022, Math.max(t + 0.5, t + dur - 0.4));
+        g.gain.linearRampToValueAtTime(0, t + dur);
+        osc.start(t); osc.stop(t + dur + 0.1);
+      }
+    }
+  }
+
+  function lead(t, freq, vol, dur) {
+    const osc = ac.createOscillator(), g = ac.createGain();
+    osc.connect(g); g.connect(masterGain);
+    osc.type = "triangle"; osc.frequency.value = freq;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.022);
+    g.gain.setValueAtTime(vol, Math.max(t + 0.03, t + dur - 0.04));
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.start(t); osc.stop(t + dur + 0.05);
+  }
+
+  // ── Step scheduler ────────────────────────────────────────────────────
+  function scheduleStep(idx, t) {
+    const intensity = getIntensity();
+    const pi  = getPatIdx(intensity);
+    const sd  = getStepDur();
+
+    // Chord pad fires once per bar (steps 0 and 16)
+    if (idx === 0)  pad(t, CHORDS[0], sd * 16);
+    if (idx === 16) pad(t, CHORDS[1], sd * 16);
+
+    for (const [s, v]    of KICK[pi])  if (s === idx) kick(t, v);
+    for (const [s, v]    of SNARE[pi]) if (s === idx) snare(t, v);
+    for (const [s, v]    of HIHAT[pi]) if (s === idx) hihat(t, v);
+    for (const [s, f, v] of BASS[pi])  if (s === idx) bass(t, f, v, sd * 1.85);
+    for (const [s, f, v] of LEAD[pi])  if (s === idx) lead(t, f, v, sd * 1.6);
+  }
+
+  function schedule() {
+    if (!isRunning || !ac || ac.state === "suspended") return;
+    while (nextStepTime < ac.currentTime + LOOKAHEAD) {
+      scheduleStep(stepIndex, nextStepTime);
+      nextStepTime += getStepDur();
+      stepIndex = (stepIndex + 1) % LOOP_STEPS;
+    }
+  }
+
+  return {
+    start() {
+      try {
+        initCtx();
+        if (ac.state === "suspended") ac.resume();
+        masterGain.gain.cancelScheduledValues(ac.currentTime);
+        masterGain.gain.setValueAtTime(0.45, ac.currentTime);
+        isRunning = true;
+        stepIndex = 0;
+        nextStepTime = ac.currentTime + 0.15;
+        if (schedulerTimer) clearInterval(schedulerTimer);
+        schedulerTimer = setInterval(schedule, SCHEDULE_INTERVAL);
+      } catch (_) {}
+    },
+    stop() {
+      isRunning = false;
+      if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
+      if (ac && masterGain) {
+        try {
+          masterGain.gain.setValueAtTime(masterGain.gain.value, ac.currentTime);
+          masterGain.gain.linearRampToValueAtTime(0, ac.currentTime + 0.6);
+          setTimeout(() => { if (masterGain) masterGain.gain.value = 0.45; }, 700);
+        } catch (_) {}
+      }
+    },
+    pause()  { try { if (ac && ac.state === "running")   ac.suspend(); } catch (_) {} },
+    resume() { try { if (ac && ac.state === "suspended") ac.resume();  } catch (_) {} },
+  };
+})();
+
 const PLAYER_SPEED = 240;
 const ENEMY_SPEED = 128;
 const ENEMY_SPAWN_INTERVAL = 10;
@@ -701,6 +1024,7 @@ function stageGoalForStage(n) {
 
 function showCongratulations(totalLevel) {
   gameLoopRunning = false;
+  MusicSystem.stop();
   congratsStatsEl.textContent = `Level ${totalLevel} erreicht · ${playerInventory.length} Upgrades gesammelt`;
   congratsOverlayEl.classList.remove("hidden");
 }
@@ -981,6 +1305,7 @@ function collectShards() {
       shards.splice(i, 1);
       const gainedXp = Math.max(1, Math.round(shard.type.xp * shardXpMultiplier));
       playerXp += gainedXp;
+      SoundSystem.collectShard(shard.type.id);
       spawnFloatingText(shardCX, shardCY - 10, `+${gainedXp} XP`, shard.type.colors[0], 15);
       statusText.textContent = `+${gainedXp} XP (${playerXp}/${xpToNextLevel})`;
 
@@ -1019,6 +1344,17 @@ function collectShards() {
         pendingPowerUpChoices += 1;
         spawnFloatingText(player.x + player.size / 2, player.y - 10, "LEVEL UP!", "#6fffe9", 22);
         statusText.textContent = `Level Up! Wähle ein Power-Up (Level ${playerLevel}).`;
+        SoundSystem.levelUp();
+        const lvlPX = player.x + player.size / 2;
+        const lvlPY = player.y + player.size / 2;
+        spawnVisualBurst(lvlPX, lvlPY, "111,255,233", 220, 0.55, 5);
+        spawnVisualBurst(lvlPX, lvlPY, "160,255,242", 140, 0.38, 3);
+        for (let i = 0; i < 16; i++) {
+          const angle = (i / 16) * Math.PI * 2;
+          const speed = randomBetween(100, 200);
+          const life = randomBetween(0.3, 0.55);
+          particles.push({ x: lvlPX, y: lvlPY, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, size: randomBetween(3, 6), color: "111,255,233", life, maxLife: life });
+        }
       }
     }
   }
@@ -1071,6 +1407,17 @@ function openPowerUpChoice() {
   renderPowerUpOptions();
   isChoosingPowerUp = true;
   powerupOverlayEl.classList.remove("hidden");
+  SoundSystem.powerUpOpen();
+  const px = player.x + player.size / 2;
+  const py = player.y + player.size / 2;
+  spawnVisualBurst(px, py, "111,255,233", 160, 0.4, 3);
+  spawnVisualBurst(px, py, "74,163,255",  100, 0.28, 2);
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2;
+    const speed = randomBetween(70, 160);
+    const life = randomBetween(0.3, 0.55);
+    particles.push({ x: px, y: py, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 40, size: randomBetween(3, 6), color: "111,255,233", life, maxLife: life });
+  }
 }
 
 function maybeOpenPowerUpChoice() {
@@ -1108,9 +1455,12 @@ function togglePause() {
   if (gameOver || isLevelComplete || isChoosingPowerUp) return;
   isPaused = !isPaused;
   pauseOverlayEl.classList.toggle("hidden", !isPaused);
+  if (isPaused) MusicSystem.pause();
+  else MusicSystem.resume();
 }
 
 function proceedFromLevelComplete() {
+  SoundSystem.stageComplete();
   isLevelComplete = false;
   lcOverlayEl.classList.add("hidden");
   const options = pickPowerUpOptions();
@@ -1141,15 +1491,36 @@ function choosePowerUpByIndex(index) {
     playerInventory.push({ id: chosen.id, title: chosen.title, description: chosen.description, rarity: chosen.rarity, count: 1 });
   }
   pendingPowerUpChoices = Math.max(0, pendingPowerUpChoices - 1);
-  isChoosingPowerUp = false;
-  powerupOverlayEl.classList.add("hidden");
   statusText.textContent = `Power-Up aktiv: ${chosen.title}`;
-  if (pendingStageTransition) {
-    pendingStageTransition = false;
-    startNextStage();
-    return;
+
+  SoundSystem.powerUpSelect(chosen.rarity);
+  const rarityColors = { common: "111,255,233", rare: "224,144,80", epic: "214,139,255", legendary: "240,200,80" };
+  const col = rarityColors[chosen.rarity] || "111,255,233";
+  const px = player.x + player.size / 2;
+  const py = player.y + player.size / 2;
+  spawnVisualBurst(px, py, col, 140, 0.35, 3);
+  for (let i = 0; i < 10; i++) {
+    const angle = (i / 10) * Math.PI * 2;
+    const speed = randomBetween(80, 160);
+    const life = randomBetween(0.25, 0.45);
+    particles.push({ x: px, y: py, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 30, size: randomBetween(3, 5), color: col, life, maxLife: life });
   }
-  maybeOpenPowerUpChoice();
+
+  const btnEl = index === 0 ? powerupOption1El : powerupOption2El;
+  btnEl.classList.add("chosen");
+  const wasPendingStageTransition = pendingStageTransition;
+  if (wasPendingStageTransition) pendingStageTransition = false;
+
+  setTimeout(() => {
+    isChoosingPowerUp = false;
+    powerupOverlayEl.classList.add("hidden");
+    btnEl.classList.remove("chosen");
+    if (wasPendingStageTransition) {
+      startNextStage();
+      return;
+    }
+    maybeOpenPowerUpChoice();
+  }, 160);
 }
 
 function updatePlayer(deltaSeconds) {
@@ -1278,6 +1649,7 @@ function tryDash() {
     dashImmunityLeft = dashDurationCurrent + 0.1;
   }
 
+  SoundSystem.dash();
   triggerShake(3, 0.1);
   dashCooldownLeft = dashCooldownCurrent;
   if (overdriveUnlocked) {
@@ -1343,6 +1715,7 @@ function tryShockwave() {
     }
   }
 
+  SoundSystem.shockwave();
   triggerShake(7, 0.28);
   shockwaveCooldownLeft = SHOCKWAVE_COOLDOWN;
   // Outer ring — slow, thin, full radius
@@ -2189,6 +2562,7 @@ function startGame() {
   gameContainerEl.classList.remove("hidden");
   resetGame();
   gameLoopRunning = true;
+  MusicSystem.start();
   requestAnimationFrame(gameLoop);
 }
 
@@ -2251,6 +2625,8 @@ function saveHighscoreIfBetter() {
 }
 
 function triggerDeathTransition(msg) {
+  SoundSystem.death();
+  MusicSystem.stop();
   saveHighscoreIfBetter();
   gameLoopRunning = false;
   transitionOverlayEl.classList.remove("death-animate");

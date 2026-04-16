@@ -56,6 +56,11 @@ h1 {
   display: none !important;
 }
 
+@keyframes powerupEnter {
+  from { opacity: 0; transform: scale(0.90) translateY(14px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
 .powerup-panel {
   width: min(920px, 92%);
   padding: 20px 22px;
@@ -63,6 +68,7 @@ h1 {
   border-radius: 14px;
   background: rgba(10, 14, 24, 0.98);
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+  animation: powerupEnter 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .powerup-panel h2 {
@@ -95,13 +101,14 @@ h1 {
   padding: 14px 16px;
   cursor: pointer;
   font-family: inherit;
-  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s, transform 0.12s;
 }
 
 .powerup-option:hover {
   border-color: #6090d0;
   background: #0e1828;
   box-shadow: 0 0 14px rgba(96, 144, 208, 0.12);
+  transform: translateY(-3px) scale(1.015);
 }
 
 .powerup-option strong {
@@ -118,6 +125,7 @@ h1 {
 .powerup-option.common:hover {
   border-color: #5addc8;
   background: #0e201a;
+  transform: translateY(-3px) scale(1.015);
 }
 
 .powerup-option.rare {
@@ -127,6 +135,7 @@ h1 {
 .powerup-option.rare:hover {
   border-color: #e09050;
   background: #1e1008;
+  transform: translateY(-3px) scale(1.015);
 }
 
 .powerup-rarity {
@@ -154,6 +163,7 @@ h1 {
 .powerup-option.epic:hover {
   border-color: #c070ee;
   background: #160c24;
+  transform: translateY(-3px) scale(1.015);
 }
 .powerup-option.epic .powerup-rarity {
   background: #480e60;
@@ -167,10 +177,37 @@ h1 {
 .powerup-option.legendary:hover {
   border-color: #f0d050;
   background: #161000;
+  transform: translateY(-3px) scale(1.015);
 }
 .powerup-option.legendary .powerup-rarity {
   background: #5a3a00;
   color: #f0d060;
+}
+
+@keyframes legendaryShimmer {
+  0%, 100% { box-shadow: 0 0 14px rgba(240,200,80,0.25); }
+  50%       { box-shadow: 0 0 30px rgba(240,200,80,0.55); }
+}
+.powerup-option.legendary {
+  animation: legendaryShimmer 1.8s ease-in-out infinite;
+}
+
+@keyframes epicGlow {
+  0%, 100% { box-shadow: 0 0 10px rgba(192,112,238,0.2); }
+  50%       { box-shadow: 0 0 22px rgba(192,112,238,0.45); }
+}
+.powerup-option.epic {
+  animation: epicGlow 2.2s ease-in-out infinite;
+}
+
+@keyframes powerupSelected {
+  0%   { opacity: 1; transform: scale(1);    filter: brightness(1);   }
+  50%  { opacity: 0.85; transform: scale(1.05); filter: brightness(2.2); }
+  100% { opacity: 0;  transform: scale(1.08); filter: brightness(1);   }
+}
+.powerup-option.chosen {
+  animation: powerupSelected 0.18s ease-out forwards;
+  pointer-events: none;
 }
 
 /* ═══════════════════════════════
