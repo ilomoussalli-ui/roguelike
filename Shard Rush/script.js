@@ -401,6 +401,12 @@ const SHARD_TYPES = [
   { id: "rare", xp: 2, colors: ["#78a8ff", "#d7e5ff"], glow: "rgba(120,168,255,ALPHA)" },
   { id: "epic", xp: 4, colors: ["#d68bff", "#f3d6ff"], glow: "rgba(214,139,255,ALPHA)" },
 ];
+const DIFFICULTY_SETTINGS = {
+  easy:   { label: "Leicht", enemySpeedMult: 0.85, spawnIntervalBonus: 2,  lives: 3, xpMult: 1.5  },
+  normal: { label: "Mittel", enemySpeedMult: 1.00, spawnIntervalBonus: 0,  lives: 2, xpMult: 1.25 },
+  hard:   { label: "Schwer", enemySpeedMult: 1.20, spawnIntervalBonus: -2, lives: 1, xpMult: 1.0  },
+};
+
 const MAP_MINE_SIZE = 20;
 const MAPS = [
   {
@@ -838,6 +844,9 @@ let floatingTexts;
 let isPaused;
 let deathCause;
 let deathBuildSnapshot;
+let currentDifficulty = "normal";
+let playerLives;
+let hitInvincibilityLeft;
 
 function randomBetween(min, max) {
   return Math.random() * (max - min) + min;
@@ -851,9 +860,11 @@ function getDebutType(stageNum) {
 
 // Spawn interval in seconds — slightly longer in later stages since enemies are stronger.
 function getSpawnInterval(stageNum) {
-  if (stageNum >= 9) return 12;
-  if (stageNum >= 6) return 11;
-  return 10;
+  let base;
+  if (stageNum >= 9) base = 12;
+  else if (stageNum >= 6) base = 11;
+  else base = 10;
+  return Math.max(5, base + DIFFICULTY_SETTINGS[currentDifficulty].spawnIntervalBonus);
 }
 
 function getEnemySpawnPool() {
@@ -955,6 +966,16 @@ function createEnemy(type = "normal") {
   return { ...base, size: 30 }; // normal
 }
 
+function updateLivesDisplay() {
+  const el = document.getElementById("lives-display");
+  if (!el) return;
+  const maxLives = DIFFICULTY_SETTINGS[currentDifficulty].lives;
+  if (maxLives <= 1) { el.textContent = ""; return; }
+  el.innerHTML = Array.from({ length: maxLives }, (_, i) =>
+    `<span style="color:${i < playerLives ? "#ff4f4f" : "#444"};margin:0 1px">\u2665</span>`
+  ).join("");
+}
+
 function resetGame() {
   currentMapIndex = 0;
   currentMap = MAPS[currentMapIndex];
@@ -1006,7 +1027,10 @@ function resetGame() {
   dashSpeedCurrent = BASE_DASH_SPEED;
   dashDurationCurrent = BASE_DASH_DURATION;
   dashCooldownCurrent = BASE_DASH_COOLDOWN;
-  shardXpMultiplier = 1;
+  const diff = DIFFICULTY_SETTINGS[currentDifficulty];
+  shardXpMultiplier = diff.xpMult;
+  playerLives = diff.lives;
+  hitInvincibilityLeft = 0;
   teleportDashUnlocked = false;
   shockwaveUnlocked = false;
   shockwaveCooldownLeft = 0;
@@ -1056,6 +1080,7 @@ function resetGame() {
   for (let i = 0; i < 4; i++) {
     spawnShard();
   }
+  updateLivesDisplay();
 }
 
 function stageGoalForStage(n) {
@@ -1124,6 +1149,7 @@ function startNextStage() {
   for (let i = 0; i < 4; i++) {
     spawnShard();
   }
+  updateLivesDisplay();
 }
 
 function clamp(value, min, max) {
@@ -1132,8 +1158,18 @@ function clamp(value, min, max) {
 
 function checkPlayerEnemyCollision() {
   if (ironDashUnlocked && dashImmunityLeft > 0) return false;
+  if (hitInvincibilityLeft > 0) return false;
   for (const enemy of enemies) {
     if (isColliding(player, enemy)) {
+      if (playerLives > 1) {
+        playerLives--;
+        hitInvincibilityLeft = 2.0;
+        triggerShake(6, 0.25);
+        deathCause = enemy.type;
+        spawnFloatingText(player.x + player.size / 2, player.y - 10, `-1 Leben`, "#ff4f4f", 18);
+        updateLivesDisplay();
+        return false;
+      }
       deathCause = enemy.type;
       deathBuildSnapshot = [...playerInventory];
       gameOver = true;
@@ -1882,24 +1918,25 @@ function updateEnemy(enemy, enemyIndex, deltaSeconds) {
   if (enemy.frozenTime && enemy.frozenTime > 0) return;
 
   const type = enemy.type || "normal";
+  const diffMult = DIFFICULTY_SETTINGS[currentDifficulty].enemySpeedMult;
 
   if (type === "normal") {
-    applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * enemy.speedFactor);
+    applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * diffMult * enemy.speedFactor);
     return;
   }
 
   if (type === "rusher") {
-    applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 1.45 * enemy.speedFactor);
+    applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 1.45 * diffMult * enemy.speedFactor);
     return;
   }
 
   if (type === "swarm") {
-    applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 1.6 * enemy.speedFactor);
+    applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 1.6 * diffMult * enemy.speedFactor);
     return;
   }
 
   if (type === "ghost") {
-    applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 1.1 * enemy.speedFactor);
+    applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 1.1 * diffMult * enemy.speedFactor);
     return;
   }
 
@@ -1942,7 +1979,7 @@ function updateEnemy(enemy, enemyIndex, deltaSeconds) {
     const dlen = Math.hypot(dx, dy);
     if (dlen > 0) { dx /= dlen; dy /= dlen; }
 
-    const speed = ENEMY_SPEED * 1.05 * enemy.speedFactor;
+    const speed = ENEMY_SPEED * 1.05 * diffMult * enemy.speedFactor;
     enemy.x += dx * speed * deltaSeconds;
     enemy.y += dy * speed * deltaSeconds;
     enemy.x = clamp(enemy.x, 0, WORLD.width - enemy.size);
@@ -1960,15 +1997,15 @@ function updateEnemy(enemy, enemyIndex, deltaSeconds) {
     const distToAnchor = Math.hypot(enemyCenterX - enemy.anchorX, enemyCenterY - enemy.anchorY);
 
     if (distToPlayer < ANCHOR_RADIUS && distToAnchor < ANCHOR_RADIUS) {
-      applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 0.9 * enemy.speedFactor);
+      applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 0.9 * diffMult * enemy.speedFactor);
     } else {
       // Return to anchor.
       let dx = enemy.anchorX - enemyCenterX;
       let dy = enemy.anchorY - enemyCenterY;
       const len = Math.hypot(dx, dy);
       if (len > 0) { dx /= len; dy /= len; }
-      enemy.x += dx * ENEMY_SPEED * 0.9 * deltaSeconds;
-      enemy.y += dy * ENEMY_SPEED * 0.9 * deltaSeconds;
+      enemy.x += dx * ENEMY_SPEED * 0.9 * diffMult * deltaSeconds;
+      enemy.y += dy * ENEMY_SPEED * 0.9 * diffMult * deltaSeconds;
       enemy.x = clamp(enemy.x, 0, WORLD.width - enemy.size);
       enemy.y = clamp(enemy.y, 0, WORLD.height - enemy.size);
     }
@@ -1989,7 +2026,7 @@ function updateEnemy(enemy, enemyIndex, deltaSeconds) {
           enemy.chargeState = "windup";
           enemy.chargeTimer = 1.0;
         }
-        applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 0.55 * enemy.speedFactor);
+        applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 0.55 * diffMult * enemy.speedFactor);
         break;
       }
       case "windup": {
@@ -2025,7 +2062,7 @@ function updateEnemy(enemy, enemyIndex, deltaSeconds) {
           enemy.chargeState = "roam";
           enemy.chargeTimer = randomBetween(2.5, 4.5);
         }
-        applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 0.75 * enemy.speedFactor);
+        applyChaseMovement(enemy, enemyIndex, deltaSeconds, ENEMY_SPEED * 0.75 * diffMult * enemy.speedFactor);
         break;
       }
     }
@@ -2052,6 +2089,7 @@ function isCollidingWithWall(entity, wall) {
 }
 
 function checkMineCollision() {
+  if (hitInvincibilityLeft > 0) return;
   for (const mine of mines) {
     if (
       player.x < mine.x + MAP_MINE_SIZE &&
@@ -2059,6 +2097,14 @@ function checkMineCollision() {
       player.y < mine.y + MAP_MINE_SIZE &&
       player.y + player.size > mine.y
     ) {
+      if (playerLives > 1) {
+        playerLives--;
+        hitInvincibilityLeft = 2.0;
+        triggerShake(6, 0.25);
+        spawnFloatingText(player.x + player.size / 2, player.y - 10, `-1 Leben`, "#ff4f4f", 18);
+        updateLivesDisplay();
+        return;
+      }
       deathCause = "mine";
       deathBuildSnapshot = [...playerInventory];
       gameOver = true;
@@ -2420,7 +2466,11 @@ function drawScene() {
     }
   }
 
+  if (hitInvincibilityLeft > 0) {
+    ctx.globalAlpha = 0.3 + 0.7 * Math.abs(Math.sin(surviveTime * 12));
+  }
   drawRect(player);
+  ctx.globalAlpha = 1;
   for (const enemy of enemies) {
     drawEnemy(enemy, surviveTime);
     if (enemy.frozenTime && enemy.frozenTime > 0) {
@@ -2526,6 +2576,7 @@ function gameLoop(now) {
     frostNovaCooldownLeft = Math.max(0, frostNovaCooldownLeft - deltaSeconds);
     overclockTimeLeft = Math.max(0, overclockTimeLeft - deltaSeconds);
     dashImmunityLeft = Math.max(0, dashImmunityLeft - deltaSeconds);
+    hitInvincibilityLeft = Math.max(0, hitInvincibilityLeft - deltaSeconds);
     phantomCooldownLeft = Math.max(0, phantomCooldownLeft - deltaSeconds);
     for (let i = decoys.length - 1; i >= 0; i--) {
       decoys[i].life -= deltaSeconds;
@@ -2720,7 +2771,9 @@ window.addEventListener("keyup", (event) => {
 // --- Start Menu ---
 const startmenuEl       = document.getElementById("startmenu");
 const gameContainerEl   = document.getElementById("game-container");
-const startmenuBtnEl    = document.getElementById("startmenu-btn");
+const diffEasyBtnEl     = document.getElementById("btn-difficulty-easy");
+const diffNormalBtnEl   = document.getElementById("btn-difficulty-normal");
+const diffHardBtnEl     = document.getElementById("btn-difficulty-hard");
 const startmenuSubEl    = document.getElementById("startmenu-sub");
 const startmenuGameoverEl = document.getElementById("startmenu-gameover");
 const startmenuRecapEl      = document.getElementById("startmenu-recap");
@@ -2731,7 +2784,8 @@ const transitionOverlayEl   = document.getElementById("transition-overlay");
 
 let gameLoopRunning = false;
 
-function startGame() {
+function startGame(difficulty) {
+  currentDifficulty = difficulty;
   startmenuEl.classList.add("hidden");
   gameContainerEl.classList.remove("hidden");
   resetGame();
@@ -2745,10 +2799,9 @@ function showStartMenu(gameoverMsg) {
     startmenuSubEl.classList.add("hidden");
     startmenuGameoverEl.textContent = gameoverMsg;
     startmenuGameoverEl.classList.remove("hidden");
-    startmenuBtnEl.textContent = "Nochmal spielen";
 
     const causeName = ENEMY_TYPE_NAMES[deathCause] || deathCause || "Unbekannt";
-    startmenuCauseEl.textContent = `Getötet von: ${causeName} · Stage ${stageNumber}`;
+    startmenuCauseEl.textContent = `[${DIFFICULTY_SETTINGS[currentDifficulty].label}] Getötet von: ${causeName} · Stage ${stageNumber}`;
     startmenuBuildEl.innerHTML = deathBuildSnapshot && deathBuildSnapshot.length > 0
       ? deathBuildSnapshot.map(e =>
           `<span class="recap-item ${e.rarity}">${e.title}${e.count > 1 ? ` x${e.count}` : ""}</span>`
@@ -2759,12 +2812,11 @@ function showStartMenu(gameoverMsg) {
     startmenuSubEl.classList.remove("hidden");
     startmenuGameoverEl.classList.add("hidden");
     startmenuRecapEl.classList.add("hidden");
-    startmenuBtnEl.textContent = "Spielen";
   }
   const hs = loadHighscore();
   if (hs.level) {
     startmenuHighscoreEl.textContent =
-      `Bestleistung: Level ${hs.level}  ·  ${hs.time.toFixed(1)}s  ·  ${hs.upgrades} Upgrades`;
+      `Bestleistung (${DIFFICULTY_SETTINGS[currentDifficulty].label}): Stage ${hs.level}  ·  ${hs.time.toFixed(1)}s  ·  ${hs.upgrades} Upgrades`;
     startmenuHighscoreEl.classList.remove("hidden");
   } else {
     startmenuHighscoreEl.classList.add("hidden");
@@ -2777,10 +2829,10 @@ function showStartMenu(gameoverMsg) {
   gameContainerEl.classList.add("hidden");
 }
 
-const HS_KEY = "shardrush_highscore";
+function hsKey() { return `shardrush_highscore_${currentDifficulty}`; }
 
 function loadHighscore() {
-  try { return JSON.parse(localStorage.getItem(HS_KEY)) || {}; } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem(hsKey())) || {}; } catch { return {}; }
 }
 
 function saveHighscoreIfBetter() {
@@ -2791,7 +2843,7 @@ function saveHighscoreIfBetter() {
     (runTime > (hs.time || 0)) ||
     (playerInventory.length > (hs.upgrades || 0));
   if (!changed) return;
-  localStorage.setItem(HS_KEY, JSON.stringify({
+  localStorage.setItem(hsKey(), JSON.stringify({
     level: Math.max(playerLevel, hs.level || 0),
     time: Math.max(runTime, hs.time || 0),
     upgrades: Math.max(playerInventory.length, hs.upgrades || 0),
@@ -2812,7 +2864,9 @@ function triggerDeathTransition(msg) {
   }, 950);
 }
 
-startmenuBtnEl.addEventListener("click", startGame);
+diffEasyBtnEl  .addEventListener("click", () => startGame("easy"));
+diffNormalBtnEl.addEventListener("click", () => startGame("normal"));
+diffHardBtnEl  .addEventListener("click", () => startGame("hard"));
 
 // ── Guide overlays ──
 const upgradeGuideOverlayEl = document.getElementById("upgrade-guide-overlay");

@@ -23,7 +23,11 @@
       </div>
 
       <div class="startmenu-actions">
-        <button id="startmenu-btn" class="startmenu-btn" type="button">Spielen</button>
+        <div class="startmenu-difficulty-btns">
+          <button id="btn-difficulty-easy"   class="startmenu-difficulty-btn diff-easy"   type="button">Leicht</button>
+          <button id="btn-difficulty-normal" class="startmenu-difficulty-btn diff-normal" type="button">Mittel</button>
+          <button id="btn-difficulty-hard"   class="startmenu-difficulty-btn diff-hard"   type="button">Schwer</button>
+        </div>
         <div class="startmenu-guide-btns">
           <button id="btn-show-upgrades" class="startmenu-guide-btn" type="button">Upgrades</button>
           <button id="btn-show-enemies"  class="startmenu-guide-btn" type="button">Gegner</button>
@@ -68,6 +72,7 @@
       <div class="top-ui">
         <div class="bar-label-row">
           <span id="level-label">Level 1</span>
+          <span id="lives-display" class="lives-display"></span>
           <span id="shard-label">0 / 6 Shards</span>
         </div>
         <div class="progress-track">

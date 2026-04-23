@@ -757,6 +757,43 @@ canvas {
   box-shadow: none;
 }
 
+/* ── Difficulty buttons ── */
+.startmenu-difficulty-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.startmenu-difficulty-btn {
+  flex: 1;
+  padding: 15px 0;
+  border: none;
+  border-radius: 10px;
+  color: #05100c;
+  font-size: 11px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+.startmenu-difficulty-btn:hover  { transform: translateY(-1px); }
+.startmenu-difficulty-btn:active { transform: translateY(0); box-shadow: none; }
+
+.diff-easy   { background: #6fff8e; }
+.diff-easy:hover   { background: #9dffb0; box-shadow: 0 0 28px rgba(111,255,142,0.35); }
+.diff-normal { background: #6fffe9; }
+.diff-normal:hover { background: #9dfff4; box-shadow: 0 0 28px rgba(111,255,233,0.35); }
+.diff-hard   { background: #ff6f6f; }
+.diff-hard:hover   { background: #ff9d9d; box-shadow: 0 0 28px rgba(255,111,111,0.35); }
+
+/* ── Lives display ── */
+.lives-display {
+  font-size: 28px;
+  letter-spacing: 4px;
+  line-height: 1;
+}
+
 .startmenu-guide-btns {
   display: flex;
   gap: 8px;
