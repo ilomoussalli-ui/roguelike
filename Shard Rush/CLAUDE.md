@@ -31,15 +31,15 @@ Long Blink — Teleport-Dash-Reichweite ×1.35 pro Stack (requires: teleportDash
 Deep Freeze — Frost Nova Dauer +1s pro Stack (requires: frostNovaUnlocked)
 Shard Storm — Alle 5 Shards spawnt ein Bonus-Shard; jeder Stack senkt das Limit um 1 (shardStormUnlocked, stackbar)
 Rare (unique)
-Teleport Dash — Dash teleportiert sofort in Laufrichtung (teleportDashUnlocked)
 Shockwave — Taste F: Schockwelle stößt Gegner weg, 7s CD (shockwaveUnlocked)
 Shard Magnet — Shards in der Nähe automatisch anziehen (shardMagnetUnlocked)
-Overclock — Nach Dash 5s lang +40% Geschwindigkeit (overclockUnlocked)
 Iron Dash — Spieler ist während des Dash unverwundbar (ironDashUnlocked); requires: !teleportDashUnlocked
 Shard Pulse — Jeder gesammelte Shard stößt nahe Gegner weg, 180px Radius (shardPulseUnlocked)
-Frost Nova — Taste E: Friert alle Gegner für 1s ein, 12s CD (frostNovaUnlocked); Ghosts immun
-Epic (unique)
 Shockwave on Dash — Jeder Dash erzeugt kleine Schockwelle (dashShockwaveUnlocked)
+Epic (unique)
+Teleport Dash — Dash teleportiert sofort in Laufrichtung (teleportDashUnlocked)
+Overclock — Nach Dash 5s lang +40% Geschwindigkeit (overclockUnlocked)
+Frost Nova — Taste E: Friert alle Gegner für 1s ein, 12s CD (frostNovaUnlocked); Ghosts immun
 Phantom — Dash hinterlässt Köder für 2s, Gegner jagen ihn statt Spieler (phantomDashUnlocked)
 Legendary (unique)
 Overdrive — Dash hat keinen Cooldown (overdriveUnlocked)

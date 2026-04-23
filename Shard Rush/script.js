@@ -570,7 +570,7 @@ const POWER_UP_POOL = [
     id: "teleport-dash",
     title: "Teleport Dash",
     description: "Dash teleportiert dich sofort in Laufrichtung.",
-    rarity: "rare",
+    rarity: "epic",
     unique: true,
     apply: () => {
       teleportDashUnlocked = true;
@@ -625,7 +625,7 @@ const POWER_UP_POOL = [
     id: "shockwave-on-dash",
     title: "Shockwave on Dash",
     description: "Jeder Dash erzeugt eine kleine Schockwelle um dich.",
-    rarity: "epic",
+    rarity: "rare",
     unique: true,
     apply: () => {
       dashShockwaveUnlocked = true;
@@ -635,7 +635,7 @@ const POWER_UP_POOL = [
     id: "overclock",
     title: "Overclock",
     description: "Nach jedem Dash bist du für 5s 40% schneller.",
-    rarity: "rare",
+    rarity: "epic",
     unique: true,
     apply: () => {
       overclockUnlocked = true;
@@ -741,7 +741,7 @@ const POWER_UP_POOL = [
     id: "frost-nova",
     title: "Frost Nova",
     description: "Taste E: Friert alle Gegner für 1s ein (12s Cooldown).",
-    rarity: "rare",
+    rarity: "epic",
     unique: true,
     apply: () => {
       frostNovaUnlocked = true;
@@ -1354,6 +1354,8 @@ function collectShards() {
 
       // Shard Pulse: push nearby enemies on every shard collected
       if (shardPulseUnlocked) {
+        spawnVisualBurst(px, py, "200,255,120", 180, 0.22, 3);
+        spawnVisualBurst(px, py, "140,255,80",  90, 0.14, 6);
         for (const enemy of enemies) {
           if (enemy.type === "ghost") continue;
           const ex = enemy.x + enemy.size / 2;
@@ -2688,9 +2690,7 @@ window.addEventListener("keydown", (event) => {
       choosePowerUpByIndex(1);
       return;
     }
-    if (key !== "r") {
-      return;
-    }
+    return;
   }
 
   if (isPaused) return;
@@ -2707,9 +2707,6 @@ window.addEventListener("keydown", (event) => {
   }
   if (key === "e") {
     tryFrostNova();
-  }
-  if (key === "r") {
-    resetGame();
   }
 });
 
