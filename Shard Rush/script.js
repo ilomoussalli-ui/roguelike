@@ -11,6 +11,9 @@ const dashBarEl = document.getElementById("dash-bar");
 const shockwaveBoxEl = document.getElementById("shockwave-box");
 const shockwaveLabelEl = document.getElementById("shockwave-label");
 const shockwaveBarEl = document.getElementById("shockwave-bar");
+const frostNovaBoxEl = document.getElementById("frost-nova-box");
+const frostNovaLabelEl = document.getElementById("frost-nova-label");
+const frostNovaBarEl = document.getElementById("frost-nova-bar");
 const powerupOverlayEl = document.getElementById("powerup-overlay");
 const powerupOption1El = document.getElementById("powerup-option-1");
 const powerupOption2El = document.getElementById("powerup-option-2");
@@ -80,6 +83,13 @@ const SoundSystem = (() => {
     shockwave() {
       sweep(90, 28, "triangle", 0.55, 0.22);
       sweep(320, 120, "sine", 0.4, 0.11, 0.04);
+    },
+    frostNova() {
+      // High glassy shimmer descending
+      sweep(2200, 900, "sine", 0.22, 0.35);
+      sweep(3200, 1400, "sine", 0.12, 0.25, 0.04);
+      // Low icy rumble
+      sweep(140, 55, "triangle", 0.3, 0.28, 0.05);
     },
     collectShard(rarity) {
       const freq = rarity === "epic" ? 1400 : rarity === "rare" ? 1100 : 880;
@@ -385,6 +395,9 @@ const BASE_DASH_COOLDOWN = DASH_COOLDOWN;
 const SHOCKWAVE_COOLDOWN = 7;
 const SHOCKWAVE_RADIUS = 230;
 const SHOCKWAVE_PUSH = 180;
+const FROST_NOVA_COOLDOWN = 12;
+const FROST_UPGRADE_SIZE = 18;
+const FROST_UPGRADE_SPAWN_INTERVAL = 18;
 const SHARD_TYPES = [
   { id: "common", xp: 1, colors: ["#6fffe9", "#d4fff9"], glow: "rgba(111,255,233,ALPHA)" },
   { id: "rare", xp: 2, colors: ["#78a8ff", "#d7e5ff"], glow: "rgba(120,168,255,ALPHA)" },
@@ -726,6 +739,17 @@ const POWER_UP_POOL = [
       overdriveUnlocked = true;
     },
   },
+  {
+    id: "frost-nova",
+    title: "Frost Nova",
+    description: "Taste E: Friert alle Gegner für 1s ein (12s Cooldown). Danach spawnen grüne Eis-Kristalle — einsammeln verlängert die Dauer um je 1s.",
+    rarity: "rare",
+    unique: true,
+    apply: () => {
+      frostNovaUnlocked = true;
+      frostNovaCooldownLeft = 0;
+    },
+  },
 ];
 
 let player;
@@ -794,6 +818,11 @@ let phantomDashUnlocked;
 let phantomCooldownLeft;
 let decoys;
 let overdriveUnlocked;
+let frostNovaUnlocked;
+let frostNovaDuration;
+let frostNovaCooldownLeft;
+let frostUpgrades;
+let frostUpgradeSpawnTimer;
 let shakeIntensity;
 let shakeDurationTotal;
 let shakeTimeLeft;
@@ -996,6 +1025,11 @@ function resetGame() {
   phantomCooldownLeft = 0;
   decoys = [];
   overdriveUnlocked = false;
+  frostNovaUnlocked = false;
+  frostNovaDuration = 1.0;
+  frostNovaCooldownLeft = 0;
+  frostUpgrades = [];
+  frostUpgradeSpawnTimer = 0;
   shakeIntensity = 0;
   shakeDurationTotal = 0;
   shakeTimeLeft = 0;
@@ -1009,6 +1043,7 @@ function resetGame() {
   isPaused = false;
   powerupOverlayEl.classList.add("hidden");
   shockwaveBoxEl.classList.add("hidden");
+  frostNovaBoxEl.classList.add("hidden");
   spawnMines();
   lastTime = performance.now();
   statusText.textContent = "Laufe weg vor dem Gegner.";
@@ -1059,6 +1094,8 @@ function startNextStage() {
   enemyAfterimages = [];
   decoys = [];
   phantomCooldownLeft = 0;
+  frostUpgrades = [];
+  frostUpgradeSpawnTimer = 0;
   isPaused = false;
   visualBursts = [];
   particles = [];
@@ -1725,6 +1762,160 @@ function tryShockwave() {
   statusText.textContent = `Shockwave! ${hitCount} Gegner weggestossen.`;
 }
 
+function tryFrostNova() {
+  if (!frostNovaUnlocked || gameOver || isChoosingPowerUp) return;
+  if (frostNovaCooldownLeft > 0) {
+    statusText.textContent = `Frost Nova bereit in ${frostNovaCooldownLeft.toFixed(1)}s`;
+    return;
+  }
+  let hitCount = 0;
+  for (const enemy of enemies) {
+    if (enemy.type === "ghost") continue; // ghosts immune
+    enemy.frozenTime = frostNovaDuration;
+    spawnFreezeParticles(enemy);
+    hitCount++;
+  }
+  frostNovaCooldownLeft = FROST_NOVA_COOLDOWN;
+  const px = player.x + player.size / 2;
+  const py = player.y + player.size / 2;
+  // Outer ice ring — slow expand
+  spawnVisualBurst(px, py, "100,220,255", 320, 0.55, 5);
+  // Inner flash — fast bright
+  spawnVisualBurst(px, py, "200,245,255", 180, 0.22, 10);
+  triggerShake(5, 0.18);
+  SoundSystem.frostNova();
+  statusText.textContent = `Frost Nova! ${hitCount} Gegner eingefroren (${frostNovaDuration.toFixed(0)}s).`;
+}
+
+function spawnFreezeParticles(enemy) {
+  const cx = enemy.x + enemy.size / 2;
+  const cy = enemy.y + enemy.size / 2;
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2 + Math.random() * 0.25;
+    const speed = randomBetween(55, 140);
+    const life = randomBetween(0.35, 0.75);
+    particles.push({
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: randomBetween(3, 7),
+      color: "120,210,255",
+      life, maxLife: life,
+    });
+  }
+  // A few bright white shards
+  for (let i = 0; i < 5; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = randomBetween(80, 170);
+    const life = randomBetween(0.2, 0.45);
+    particles.push({
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: randomBetween(2, 5),
+      color: "220,245,255",
+      life, maxLife: life,
+    });
+  }
+}
+
+function spawnFrostUpgrade() {
+  let x = randomBetween(16, WORLD.width - FROST_UPGRADE_SIZE - 16);
+  let y = randomBetween(16, WORLD.height - FROST_UPGRADE_SIZE - 16);
+  let tries = 0;
+  while (tries < 40) {
+    const dx = x - player.x;
+    const dy = y - player.y;
+    const tooClose = Math.hypot(dx, dy) < 120;
+    const inWall = currentMap.walls.some(
+      (w) => x < w.x + w.w && x + FROST_UPGRADE_SIZE > w.x && y < w.y + w.h && y + FROST_UPGRADE_SIZE > w.y
+    );
+    const nearMine = mines.some(
+      (m) => Math.hypot(x + FROST_UPGRADE_SIZE / 2 - (m.x + MAP_MINE_SIZE / 2), y + FROST_UPGRADE_SIZE / 2 - (m.y + MAP_MINE_SIZE / 2)) < 70
+    );
+    if (!tooClose && !inWall && !nearMine) break;
+    x = randomBetween(16, WORLD.width - FROST_UPGRADE_SIZE - 16);
+    y = randomBetween(16, WORLD.height - FROST_UPGRADE_SIZE - 16);
+    tries++;
+  }
+  frostUpgrades.push({ x, y, size: FROST_UPGRADE_SIZE, pulseSeed: randomBetween(0, Math.PI * 2) });
+}
+
+function drawFrostUpgrade(upgrade, time) {
+  const cx = upgrade.x + upgrade.size / 2;
+  const cy = upgrade.y + upgrade.size / 2;
+  const pulse = 0.88 + (Math.sin(time * 4.5 + upgrade.pulseSeed) + 1) * 0.1;
+  const r = (upgrade.size * 0.54) * pulse;
+
+  // Outer glow
+  ctx.fillStyle = "rgba(80,200,120,0.22)";
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 1.55, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Green-teal diamond
+  ctx.fillStyle = "#3dffaa";
+  ctx.beginPath();
+  ctx.moveTo(cx,       cy - r);
+  ctx.lineTo(cx + r,   cy);
+  ctx.lineTo(cx,       cy + r);
+  ctx.lineTo(cx - r,   cy);
+  ctx.closePath();
+  ctx.fill();
+
+  // Lighter inner diamond
+  ctx.fillStyle = "#b0ffe8";
+  const ir = r * 0.45;
+  ctx.beginPath();
+  ctx.moveTo(cx,       cy - ir);
+  ctx.lineTo(cx + ir,  cy);
+  ctx.lineTo(cx,       cy + ir);
+  ctx.lineTo(cx - ir,  cy);
+  ctx.closePath();
+  ctx.fill();
+
+  // Snowflake cross lines
+  ctx.strokeStyle = "rgba(200,255,230,0.85)";
+  ctx.lineWidth = 1.5;
+  const sf = ir * 0.75;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - sf); ctx.lineTo(cx, cy + sf);
+  ctx.moveTo(cx - sf, cy); ctx.lineTo(cx + sf, cy);
+  // Diagonal arms
+  const sd = sf * 0.65;
+  ctx.moveTo(cx - sd, cy - sd); ctx.lineTo(cx + sd, cy + sd);
+  ctx.moveTo(cx + sd, cy - sd); ctx.lineTo(cx - sd, cy + sd);
+  ctx.stroke();
+}
+
+function collectFrostUpgrades() {
+  for (let i = frostUpgrades.length - 1; i >= 0; i--) {
+    const u = frostUpgrades[i];
+    if (isColliding(player, u)) {
+      frostNovaDuration += 1;
+      frostUpgrades.splice(i, 1);
+      const cx = u.x + u.size / 2;
+      const cy = u.y + u.size / 2;
+      spawnFloatingText(cx, cy - 10, `+1s Frost (${frostNovaDuration.toFixed(0)}s)`, "#3dffaa", 13);
+      SoundSystem.collectShard("rare");
+      // Green ice particles
+      for (let j = 0; j < 10; j++) {
+        const angle = (j / 10) * Math.PI * 2 + Math.random() * 0.3;
+        const speed = randomBetween(55, 115);
+        const life = randomBetween(0.3, 0.55);
+        particles.push({
+          x: cx, y: cy,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: randomBetween(2, 5),
+          color: "80,255,160",
+          life, maxLife: life,
+        });
+      }
+    }
+  }
+}
+
 // Shared chase logic reused by multiple enemy types.
 function applyChaseMovement(enemy, enemyIndex, deltaSeconds, speed) {
   const time = surviveTime;
@@ -1779,6 +1970,9 @@ function applyChaseMovement(enemy, enemyIndex, deltaSeconds, speed) {
 }
 
 function updateEnemy(enemy, enemyIndex, deltaSeconds) {
+  // Frozen enemies don't move
+  if (enemy.frozenTime && enemy.frozenTime > 0) return;
+
   const type = enemy.type || "normal";
 
   if (type === "normal") {
@@ -2101,6 +2295,57 @@ function drawEnemy(enemy, time) {
   }
 }
 
+function drawFrozenOverlay(enemy, time) {
+  const cx = enemy.x + enemy.size / 2;
+  const cy = enemy.y + enemy.size / 2;
+  const r = enemy.size / 2;
+
+  // Blue-white frost tint over the enemy body
+  ctx.globalAlpha = 0.62;
+  ctx.fillStyle = "#9ee8ff";
+  ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
+  ctx.globalAlpha = 1;
+
+  // Ice crystal spikes radiating from centre
+  const spikeCount = 6;
+  const innerR = r * 1.08;
+  const outerR = r * 1.72;
+  ctx.strokeStyle = "rgba(180,240,255,0.9)";
+  ctx.lineWidth = 1.8;
+  for (let i = 0; i < spikeCount; i++) {
+    const angle = (i / spikeCount) * Math.PI * 2 + time * 0.4;
+    const sx = cx + Math.cos(angle) * innerR;
+    const sy = cy + Math.sin(angle) * innerR;
+    const ex = cx + Math.cos(angle) * outerR;
+    const ey = cy + Math.sin(angle) * outerR;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    // Crossbar at 55% along the spike
+    const mx = cx + Math.cos(angle) * (innerR + (outerR - innerR) * 0.55);
+    const my = cy + Math.sin(angle) * (innerR + (outerR - innerR) * 0.55);
+    const perp = angle + Math.PI / 2;
+    const cl = (outerR - innerR) * 0.28;
+    ctx.beginPath();
+    ctx.moveTo(mx + Math.cos(perp) * cl, my + Math.sin(perp) * cl);
+    ctx.lineTo(mx - Math.cos(perp) * cl, my - Math.sin(perp) * cl);
+    ctx.stroke();
+  }
+
+  // Snowflake in the centre (3 crossing lines)
+  ctx.strokeStyle = "rgba(255,255,255,0.88)";
+  ctx.lineWidth = 1.5;
+  const sf = r * 0.48;
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(cx - Math.cos(a) * sf, cy - Math.sin(a) * sf);
+    ctx.lineTo(cx + Math.cos(a) * sf, cy + Math.sin(a) * sf);
+    ctx.stroke();
+  }
+}
+
 function drawScene() {
   ctx.clearRect(0, 0, WORLD.width, WORLD.height);
 
@@ -2162,6 +2407,9 @@ function drawScene() {
 
   for (const shard of shards) {
     drawShard(shard, surviveTime);
+  }
+  for (const fu of frostUpgrades) {
+    drawFrostUpgrade(fu, surviveTime);
   }
 
   for (const img of afterimages) {
@@ -2270,6 +2518,9 @@ function drawScene() {
   drawRect(player);
   for (const enemy of enemies) {
     drawEnemy(enemy, surviveTime);
+    if (enemy.frozenTime && enemy.frozenTime > 0) {
+      drawFrozenOverlay(enemy, surviveTime);
+    }
     if (enemy.flashTime > 0) {
       const fa = (enemy.flashTime / 0.14) * 0.65;
       ctx.fillStyle = `rgba(255,255,255,${fa.toFixed(3)})`;
@@ -2295,6 +2546,11 @@ function drawScene() {
   } else if (phantomDashUnlocked && phantomCooldownLeft > 0) {
     ctx.fillStyle = "#7a9acc";
     ctx.fillText(`👻 Köder in ${phantomCooldownLeft.toFixed(1)}s`, 12, 122);
+  }
+  if (frostNovaUnlocked && enemies.some(e => e.frozenTime > 0)) {
+    const maxFrozen = Math.max(...enemies.map(e => e.frozenTime || 0));
+    ctx.fillStyle = "#9ee8ff";
+    ctx.fillText(`❄ EINGEFROREN ${maxFrozen.toFixed(1)}s`, 12, 146);
   }
 
   // Floating texts
@@ -2336,6 +2592,19 @@ function updateUiBars() {
   } else {
     shockwaveBoxEl.classList.add("hidden");
   }
+
+  if (frostNovaUnlocked) {
+    frostNovaBoxEl.classList.remove("hidden");
+    const frostReadyRatio =
+      ((FROST_NOVA_COOLDOWN - frostNovaCooldownLeft) / FROST_NOVA_COOLDOWN) * 100;
+    frostNovaBarEl.style.width = `${clamp(frostReadyRatio, 0, 100).toFixed(2)}%`;
+    frostNovaLabelEl.textContent =
+      frostNovaCooldownLeft <= 0
+        ? `Frost Nova bereit (${frostNovaDuration.toFixed(0)}s)`
+        : `Frost Nova in ${frostNovaCooldownLeft.toFixed(1)}s`;
+  } else {
+    frostNovaBoxEl.classList.add("hidden");
+  }
 }
 
 function gameLoop(now) {
@@ -2349,6 +2618,7 @@ function gameLoop(now) {
     shardSpawnTimer += deltaSeconds;
     dashCooldownLeft = Math.max(0, dashCooldownLeft - deltaSeconds);
     shockwaveCooldownLeft = Math.max(0, shockwaveCooldownLeft - deltaSeconds);
+    frostNovaCooldownLeft = Math.max(0, frostNovaCooldownLeft - deltaSeconds);
     overclockTimeLeft = Math.max(0, overclockTimeLeft - deltaSeconds);
     dashImmunityLeft = Math.max(0, dashImmunityLeft - deltaSeconds);
     phantomCooldownLeft = Math.max(0, phantomCooldownLeft - deltaSeconds);
@@ -2378,6 +2648,7 @@ function gameLoop(now) {
     shakeTimeLeft = Math.max(0, shakeTimeLeft - deltaSeconds);
     for (const enemy of enemies) {
       enemy.flashTime = Math.max(0, enemy.flashTime - deltaSeconds);
+      if (enemy.frozenTime) enemy.frozenTime = Math.max(0, enemy.frozenTime - deltaSeconds);
     }
     updateVisualBursts(deltaSeconds);
     updatePlayer(deltaSeconds);
@@ -2397,6 +2668,14 @@ function gameLoop(now) {
     }
 
     collectShards();
+    if (frostNovaUnlocked) {
+      frostUpgradeSpawnTimer += deltaSeconds;
+      if (frostUpgradeSpawnTimer >= FROST_UPGRADE_SPAWN_INTERVAL && frostUpgrades.length < 3) {
+        frostUpgradeSpawnTimer = 0;
+        spawnFrostUpgrade();
+      }
+      collectFrostUpgrades();
+    }
     maybeOpenPowerUpChoice();
     for (let i = 0; i < enemies.length; i++) {
       updateEnemy(enemies[i], i, deltaSeconds);
@@ -2530,6 +2809,9 @@ window.addEventListener("keydown", (event) => {
   }
   if (key === "f") {
     tryShockwave();
+  }
+  if (key === "e") {
+    tryFrostNova();
   }
   if (key === "r") {
     resetGame();

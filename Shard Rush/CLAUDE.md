@@ -4,7 +4,7 @@ index.html — HTML-Struktur, Canvas (1520x855), UI-Elemente, alle Overlays
 style.css — Alle Styles
 script.js — Gesamte Spiellogik
 Spielmechanik
-Spieler bewegt sich mit WASD, Dash mit Leertaste, Shockwave mit F
+Spieler bewegt sich mit WASD, Dash mit Leertaste, Shockwave mit F, Frost Nova mit E
 Gegner jagen den Spieler, spawnen alle 10 Sekunden
 Shards sammeln gibt XP → Level Up → Power-Up auswählen
 Kollision mit Gegner oder Mine = Game Over
@@ -36,6 +36,7 @@ Shard Magnet — Shards in der Nähe automatisch anziehen (shardMagnetUnlocked)
 Overclock — Nach Dash 5s lang +40% Geschwindigkeit (overclockUnlocked)
 Iron Dash — Spieler ist während des Dash unverwundbar (ironDashUnlocked); requires: !teleportDashUnlocked
 Shard Pulse — Jeder gesammelte Shard stößt nahe Gegner weg, 180px Radius (shardPulseUnlocked)
+Frost Nova — Taste E: Friert alle Gegner für 1s ein, 12s CD (frostNovaUnlocked); Ghosts immun; danach spawnen grüne Eis-Kristall-Pickups alle 18s (max 3 gleichzeitig), einsammeln +1s Dauer
 Epic (unique)
 Shockwave on Dash — Jeder Dash erzeugt kleine Schockwelle (dashShockwaveUnlocked)
 Phantom — Dash hinterlässt Köder für 2s, Gegner jagen ihn statt Spieler (phantomDashUnlocked)
@@ -47,6 +48,9 @@ rare: 0.3
 epic: 0.15
 legendary: 0.06
 State-Variablen (alle in resetGame() initialisiert, relevante auch in startNextStage())
+frostNovaUnlocked / frostNovaDuration / frostNovaCooldownLeft — Frost Nova Zustand
+frostUpgrades[] / frostUpgradeSpawnTimer — Welt-Pickups die Frost-Dauer verlängern; auch in startNextStage() zurückgesetzt
+enemy.frozenTime — wie lange ein Gegner noch eingefroren ist (wird in updateEnemy übersprungen wenn > 0)
 ironDashUnlocked / dashImmunityLeft — Iron Dash Unverwundbarkeit
 shardStormUnlocked / shardStormCount / shardStormThreshold — Shard Storm Zähler (Startwert 6, erste apply() → 5)
 shardPulseUnlocked — Shard Pulse aktiv

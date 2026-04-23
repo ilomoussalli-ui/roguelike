@@ -319,6 +319,20 @@ canvas {
   background: linear-gradient(90deg, #e08030, #f8c880);
 }
 
+.frost-nova-box {
+  border-color: rgba(50, 150, 180, 0.5);
+  background: rgba(2, 12, 18, 0.88);
+}
+
+.frost-nova-track {
+  border-color: #0e2a38;
+  background: #040e14;
+}
+
+.frost-nova-fill {
+  background: linear-gradient(90deg, #30b8e0, #a0eeff);
+}
+
 /* ═══════════════════════════════
    PAUSE OVERLAY
 ═══════════════════════════════ */
