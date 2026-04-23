@@ -396,8 +396,6 @@ const SHOCKWAVE_COOLDOWN = 7;
 const SHOCKWAVE_RADIUS = 230;
 const SHOCKWAVE_PUSH = 180;
 const FROST_NOVA_COOLDOWN = 12;
-const FROST_UPGRADE_SIZE = 18;
-const FROST_UPGRADE_SPAWN_INTERVAL = 18;
 const SHARD_TYPES = [
   { id: "common", xp: 1, colors: ["#6fffe9", "#d4fff9"], glow: "rgba(111,255,233,ALPHA)" },
   { id: "rare", xp: 2, colors: ["#78a8ff", "#d7e5ff"], glow: "rgba(120,168,255,ALPHA)" },
@@ -742,12 +740,23 @@ const POWER_UP_POOL = [
   {
     id: "frost-nova",
     title: "Frost Nova",
-    description: "Taste E: Friert alle Gegner für 1s ein (12s Cooldown). Danach spawnen grüne Eis-Kristalle — einsammeln verlängert die Dauer um je 1s.",
+    description: "Taste E: Friert alle Gegner für 1s ein (12s Cooldown).",
     rarity: "rare",
     unique: true,
     apply: () => {
       frostNovaUnlocked = true;
       frostNovaCooldownLeft = 0;
+    },
+  },
+  {
+    id: "frost-duration",
+    title: "Deep Freeze",
+    description: "Frost Nova friert Gegner 1s länger ein.",
+    rarity: "common",
+    unique: false,
+    requires: () => frostNovaUnlocked,
+    apply: () => {
+      frostNovaDuration += 1;
     },
   },
 ];
@@ -821,8 +830,6 @@ let overdriveUnlocked;
 let frostNovaUnlocked;
 let frostNovaDuration;
 let frostNovaCooldownLeft;
-let frostUpgrades;
-let frostUpgradeSpawnTimer;
 let shakeIntensity;
 let shakeDurationTotal;
 let shakeTimeLeft;
@@ -1028,8 +1035,6 @@ function resetGame() {
   frostNovaUnlocked = false;
   frostNovaDuration = 1.0;
   frostNovaCooldownLeft = 0;
-  frostUpgrades = [];
-  frostUpgradeSpawnTimer = 0;
   shakeIntensity = 0;
   shakeDurationTotal = 0;
   shakeTimeLeft = 0;
@@ -1094,8 +1099,6 @@ function startNextStage() {
   enemyAfterimages = [];
   decoys = [];
   phantomCooldownLeft = 0;
-  frostUpgrades = [];
-  frostUpgradeSpawnTimer = 0;
   isPaused = false;
   visualBursts = [];
   particles = [];
@@ -1819,103 +1822,6 @@ function spawnFreezeParticles(enemy) {
   }
 }
 
-function spawnFrostUpgrade() {
-  let x = randomBetween(16, WORLD.width - FROST_UPGRADE_SIZE - 16);
-  let y = randomBetween(16, WORLD.height - FROST_UPGRADE_SIZE - 16);
-  let tries = 0;
-  while (tries < 40) {
-    const dx = x - player.x;
-    const dy = y - player.y;
-    const tooClose = Math.hypot(dx, dy) < 120;
-    const inWall = currentMap.walls.some(
-      (w) => x < w.x + w.w && x + FROST_UPGRADE_SIZE > w.x && y < w.y + w.h && y + FROST_UPGRADE_SIZE > w.y
-    );
-    const nearMine = mines.some(
-      (m) => Math.hypot(x + FROST_UPGRADE_SIZE / 2 - (m.x + MAP_MINE_SIZE / 2), y + FROST_UPGRADE_SIZE / 2 - (m.y + MAP_MINE_SIZE / 2)) < 70
-    );
-    if (!tooClose && !inWall && !nearMine) break;
-    x = randomBetween(16, WORLD.width - FROST_UPGRADE_SIZE - 16);
-    y = randomBetween(16, WORLD.height - FROST_UPGRADE_SIZE - 16);
-    tries++;
-  }
-  frostUpgrades.push({ x, y, size: FROST_UPGRADE_SIZE, pulseSeed: randomBetween(0, Math.PI * 2) });
-}
-
-function drawFrostUpgrade(upgrade, time) {
-  const cx = upgrade.x + upgrade.size / 2;
-  const cy = upgrade.y + upgrade.size / 2;
-  const pulse = 0.88 + (Math.sin(time * 4.5 + upgrade.pulseSeed) + 1) * 0.1;
-  const r = (upgrade.size * 0.54) * pulse;
-
-  // Outer glow
-  ctx.fillStyle = "rgba(80,200,120,0.22)";
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 1.55, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Green-teal diamond
-  ctx.fillStyle = "#3dffaa";
-  ctx.beginPath();
-  ctx.moveTo(cx,       cy - r);
-  ctx.lineTo(cx + r,   cy);
-  ctx.lineTo(cx,       cy + r);
-  ctx.lineTo(cx - r,   cy);
-  ctx.closePath();
-  ctx.fill();
-
-  // Lighter inner diamond
-  ctx.fillStyle = "#b0ffe8";
-  const ir = r * 0.45;
-  ctx.beginPath();
-  ctx.moveTo(cx,       cy - ir);
-  ctx.lineTo(cx + ir,  cy);
-  ctx.lineTo(cx,       cy + ir);
-  ctx.lineTo(cx - ir,  cy);
-  ctx.closePath();
-  ctx.fill();
-
-  // Snowflake cross lines
-  ctx.strokeStyle = "rgba(200,255,230,0.85)";
-  ctx.lineWidth = 1.5;
-  const sf = ir * 0.75;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - sf); ctx.lineTo(cx, cy + sf);
-  ctx.moveTo(cx - sf, cy); ctx.lineTo(cx + sf, cy);
-  // Diagonal arms
-  const sd = sf * 0.65;
-  ctx.moveTo(cx - sd, cy - sd); ctx.lineTo(cx + sd, cy + sd);
-  ctx.moveTo(cx + sd, cy - sd); ctx.lineTo(cx - sd, cy + sd);
-  ctx.stroke();
-}
-
-function collectFrostUpgrades() {
-  for (let i = frostUpgrades.length - 1; i >= 0; i--) {
-    const u = frostUpgrades[i];
-    if (isColliding(player, u)) {
-      frostNovaDuration += 1;
-      frostUpgrades.splice(i, 1);
-      const cx = u.x + u.size / 2;
-      const cy = u.y + u.size / 2;
-      spawnFloatingText(cx, cy - 10, `+1s Frost (${frostNovaDuration.toFixed(0)}s)`, "#3dffaa", 13);
-      SoundSystem.collectShard("rare");
-      // Green ice particles
-      for (let j = 0; j < 10; j++) {
-        const angle = (j / 10) * Math.PI * 2 + Math.random() * 0.3;
-        const speed = randomBetween(55, 115);
-        const life = randomBetween(0.3, 0.55);
-        particles.push({
-          x: cx, y: cy,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          size: randomBetween(2, 5),
-          color: "80,255,160",
-          life, maxLife: life,
-        });
-      }
-    }
-  }
-}
-
 // Shared chase logic reused by multiple enemy types.
 function applyChaseMovement(enemy, enemyIndex, deltaSeconds, speed) {
   const time = surviveTime;
@@ -2408,9 +2314,6 @@ function drawScene() {
   for (const shard of shards) {
     drawShard(shard, surviveTime);
   }
-  for (const fu of frostUpgrades) {
-    drawFrostUpgrade(fu, surviveTime);
-  }
 
   for (const img of afterimages) {
     const alpha = (img.life / img.maxLife) * 0.45;
@@ -2668,14 +2571,6 @@ function gameLoop(now) {
     }
 
     collectShards();
-    if (frostNovaUnlocked) {
-      frostUpgradeSpawnTimer += deltaSeconds;
-      if (frostUpgradeSpawnTimer >= FROST_UPGRADE_SPAWN_INTERVAL && frostUpgrades.length < 3) {
-        frostUpgradeSpawnTimer = 0;
-        spawnFrostUpgrade();
-      }
-      collectFrostUpgrades();
-    }
     maybeOpenPowerUpChoice();
     for (let i = 0; i < enemies.length; i++) {
       updateEnemy(enemies[i], i, deltaSeconds);

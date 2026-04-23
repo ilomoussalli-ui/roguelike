@@ -15,7 +15,7 @@ SHARD_TYPES — common/rare/epic mit XP-Werten
 POWER_UP_POOL — alle verfügbaren Power-Ups
 SHOCKWAVE_COOLDOWN — aktuell 7s
 ENEMY_TYPE_NAMES — Mapping von enemy.type auf deutschen Namen (für Death Recap)
-Power-Up-Pool (21 gesamt)
+Power-Up-Pool (23 gesamt)
 Common (stackbar)
 Swift Steps — +12% Bewegungsgeschwindigkeit
 Quick Recharge — Dash-Cooldown −1.0s (min. 2.0s); requires: !overdriveUnlocked
@@ -28,6 +28,7 @@ Blast Radius — Dash-Schockwelle-Radius ×1.3 (requires: dashShockwaveUnlocked)
 Overclock Speed — Overclock +10% Geschwindigkeit (requires: overclockUnlocked)
 Overclock Duration — Overclock +2s Dauer (requires: overclockUnlocked)
 Long Blink — Teleport-Dash-Reichweite ×1.35 pro Stack (requires: teleportDashUnlocked)
+Deep Freeze — Frost Nova Dauer +1s pro Stack (requires: frostNovaUnlocked)
 Shard Storm — Alle 5 Shards spawnt ein Bonus-Shard; jeder Stack senkt das Limit um 1 (shardStormUnlocked, stackbar)
 Rare (unique)
 Teleport Dash — Dash teleportiert sofort in Laufrichtung (teleportDashUnlocked)
@@ -36,7 +37,7 @@ Shard Magnet — Shards in der Nähe automatisch anziehen (shardMagnetUnlocked)
 Overclock — Nach Dash 5s lang +40% Geschwindigkeit (overclockUnlocked)
 Iron Dash — Spieler ist während des Dash unverwundbar (ironDashUnlocked); requires: !teleportDashUnlocked
 Shard Pulse — Jeder gesammelte Shard stößt nahe Gegner weg, 180px Radius (shardPulseUnlocked)
-Frost Nova — Taste E: Friert alle Gegner für 1s ein, 12s CD (frostNovaUnlocked); Ghosts immun; danach spawnen grüne Eis-Kristall-Pickups alle 18s (max 3 gleichzeitig), einsammeln +1s Dauer
+Frost Nova — Taste E: Friert alle Gegner für 1s ein, 12s CD (frostNovaUnlocked); Ghosts immun
 Epic (unique)
 Shockwave on Dash — Jeder Dash erzeugt kleine Schockwelle (dashShockwaveUnlocked)
 Phantom — Dash hinterlässt Köder für 2s, Gegner jagen ihn statt Spieler (phantomDashUnlocked)
@@ -49,7 +50,6 @@ epic: 0.15
 legendary: 0.06
 State-Variablen (alle in resetGame() initialisiert, relevante auch in startNextStage())
 frostNovaUnlocked / frostNovaDuration / frostNovaCooldownLeft — Frost Nova Zustand
-frostUpgrades[] / frostUpgradeSpawnTimer — Welt-Pickups die Frost-Dauer verlängern; auch in startNextStage() zurückgesetzt
 enemy.frozenTime — wie lange ein Gegner noch eingefroren ist (wird in updateEnemy übersprungen wenn > 0)
 ironDashUnlocked / dashImmunityLeft — Iron Dash Unverwundbarkeit
 shardStormUnlocked / shardStormCount / shardStormThreshold — Shard Storm Zähler (Startwert 6, erste apply() → 5)
