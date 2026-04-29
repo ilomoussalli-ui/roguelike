@@ -2694,6 +2694,7 @@ canvas.addEventListener("contextmenu", (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
+  if (!event.key) return;
   const key = event.key.toLowerCase();
 
   if (event.code === "Tab") {
@@ -2746,7 +2747,7 @@ window.addEventListener("keydown", (event) => {
 
   if (isPaused) return;
 
-  if (key in keys) {
+  if (keys && key in keys) {
     keys[key] = true;
   }
   if (event.code === "Space") {
@@ -2762,8 +2763,9 @@ window.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("keyup", (event) => {
+  if (!event.key) return;
   const key = event.key.toLowerCase();
-  if (key in keys) {
+  if (keys && key in keys) {
     keys[key] = false;
   }
 });
@@ -2848,6 +2850,10 @@ function saveHighscoreIfBetter() {
     time: Math.max(runTime, hs.time || 0),
     upgrades: Math.max(playerInventory.length, hs.upgrades || 0),
   }));
+  if (typeof syncHighscoreToCloud === 'function') {
+    const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (u) syncHighscoreToCloud(currentDifficulty, playerLevel, runTime, playerInventory.length);
+  }
 }
 
 function triggerDeathTransition(msg) {

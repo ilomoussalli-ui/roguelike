@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Shard Rush</title>
   <link rel="stylesheet" href="./style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -31,6 +32,12 @@
         <div class="startmenu-guide-btns">
           <button id="btn-show-upgrades" class="startmenu-guide-btn" type="button">Upgrades</button>
           <button id="btn-show-enemies"  class="startmenu-guide-btn" type="button">Gegner</button>
+          <button id="btn-leaderboard"   class="startmenu-guide-btn" type="button">Bestenliste</button>
+        </div>
+        <div class="auth-bar">
+          <span id="auth-username-display" class="auth-username-display"></span>
+          <button id="btn-auth-open"   class="startmenu-guide-btn auth-btn" type="button">Anmelden / Registrieren</button>
+          <button id="btn-auth-logout" class="startmenu-guide-btn auth-btn hidden" type="button">Abmelden</button>
         </div>
       </div>
 
@@ -152,6 +159,41 @@
     <p id="status" class="status">Laufe weg vor dem Gegner.</p>
   </main>
 
+  <!-- Auth overlay -->
+  <div id="auth-overlay" class="auth-overlay hidden">
+    <div class="auth-panel">
+      <div class="auth-tabs">
+        <button id="tab-login"    class="auth-tab active" type="button">Anmelden</button>
+        <button id="tab-register" class="auth-tab"        type="button">Registrieren</button>
+      </div>
+      <input id="auth-input-username" class="auth-input" type="text"     placeholder="Username"  maxlength="20" autocomplete="username" />
+      <input id="auth-input-password" class="auth-input" type="password" placeholder="Passwort"               autocomplete="current-password" />
+      <p id="auth-error" class="auth-error hidden"></p>
+      <button id="btn-auth-submit" class="auth-submit-btn" type="button">Anmelden</button>
+      <button id="btn-auth-close"  class="auth-close-btn"  type="button">Abbrechen</button>
+    </div>
+  </div>
+
+  <!-- Leaderboard overlay -->
+  <div id="leaderboard-overlay" class="auth-overlay hidden">
+    <div class="auth-panel lb-panel">
+      <h2 class="lb-title">Weltbestenliste</h2>
+      <div class="auth-tabs">
+        <button class="auth-tab"        data-diff="easy"   type="button">Leicht</button>
+        <button class="auth-tab active" data-diff="normal" type="button">Normal</button>
+        <button class="auth-tab"        data-diff="hard"   type="button">Schwer</button>
+      </div>
+      <table id="leaderboard-table" class="lb-table">
+        <thead>
+          <tr><th>#</th><th>Name</th><th>Stage</th><th>Zeit</th><th>Upgrades</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button id="btn-leaderboard-close" class="auth-close-btn" type="button">Schließen</button>
+    </div>
+  </div>
+
+  <script src="./supabase-client.js"></script>
   <script src="./script.js"></script>
 </body>
 </html>
